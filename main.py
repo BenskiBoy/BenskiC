@@ -27,8 +27,13 @@ def main(input_file, lex, parse, codegen, s, debug):
     elif parse:
         lexer = Lexer(content, debug)
         tokens = lexer.lex()
+        if debug:
+            print(str(lexer))
+
         parser = Parser(tokens, debug)
         ast = parser.parse()
+        if debug:
+            pretty_print(ast)
 
     elif codegen:
         lexer = Lexer(content, debug)

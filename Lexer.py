@@ -11,6 +11,9 @@ TOKENS = [
     (r"\{", "OPEN_BRACE"),
     (r"\}", "CLOSE_BRACE"),
     (r";", "SEMICOLON"),
+    (r"~", "TILDA"),
+    (r"-", "HYPHEN"),
+    (r"--", "DOUBLE_HYPHEN"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]
@@ -50,6 +53,10 @@ class Lexer:
             # skip comments
             elif self.content[0:2] == "//":
                 self.content = self.content.split("\n", 1)[1]
+
+            # skip multiline comments
+            elif self.content[0:2] == "/*":
+                self.content = self.content.split("*/", 1)[1]
 
             else:
 

@@ -1,5 +1,5 @@
 test:
-	tester/test_compiler /home/benth/programming/c_compiler/main.py --chapter 1
+	tester/test_compiler /home/benth/programming/c_compiler/main.py --chapter 2 --stage parse
 
 run:
 	python main.py ./return_2.c --debug  

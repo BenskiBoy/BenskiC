@@ -11,6 +11,9 @@ class ASTNode:
     def add_child(self, child: Self) -> None:
         self.children.append(child)
 
+    def __repr__(self) -> str:
+        return f"{self.type}({self.children})"
+
 
 class ReturnNode(ASTNode):
     def __init__(self, child: ASTNode) -> None:
@@ -27,6 +30,18 @@ class ConstantNode(ASTNode):
 
     def __str__(self) -> str:
         return f"""Constant({self.value})"""
+
+    def __repr__(self) -> str:
+        return f"""CONSTANT({self.value})"""
+
+
+class UnaryNode(ASTNode):
+    def __init__(self, operator: str, child: ASTNode) -> None:
+        super().__init__("UNARY", [child])
+        self.operator = operator
+
+    def __str__(self) -> str:
+        return f"""Unary({self.operator}, {self.children[0]})"""
 
 
 class FunctionNode(ASTNode):
@@ -90,13 +105,35 @@ class Parser:
         tokens, _ = self.expect(Token("CLOSE_BRACE"), tokens)
         return tokens, FunctionNode(return_type, name, [body])
 
-    def parse_statement(self, tokens) -> None:
+    def parse_statement(self, tokens) -> ASTNode:
         tokens, _ = self.expect(Token("RETURN"), tokens)
-        tokens, return_val = self.parse_constant(tokens)
-
+        tokens, expression = self.parse_expression(tokens)
         tokens, _ = self.expect(Token("SEMICOLON"), tokens)
 
-        return tokens, ReturnNode(return_val)
+        return tokens, ReturnNode(expression)
+
+    def parse_expression(self, tokens) -> ASTNode:
+        next_token = tokens[0]
+        if next_token.type == "CONSTANT":
+            return self.parse_constant(tokens)
+        elif next_token.type == "TILDA" or next_token.type == "HYPHEN":
+            tokens, operator = self.parse_unary(tokens)
+            tokens, inner_expression = self.parse_expression(tokens)
+
+            return tokens, UnaryNode(operator, inner_expression)
+
+        elif next_token.type == "OPEN_PAREN":
+            tokens = tokens[1:]
+            tokens, expression = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+            return tokens, expression
+        else:
+            raise Exception(f"Syntax Error: Unexpected token {next_token}")
+        # tokens, constnat = self.parse_constant(tokens)
+        # return tokens, constnat
+
+    def parse_unary(self, tokens) -> tuple[list[ASTNode], str]:
+        return tokens[1:], tokens[0].value
 
     def parse_constant(self, tokens) -> ASTNode:
         tokens, constant_token = self.expect(Token("CONSTANT"), tokens)

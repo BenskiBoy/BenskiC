@@ -1,4 +1,4 @@
 int main(void) {
     // test case w/ multi-digit constant
-    return 100;
+    return -(~(100));
 }
