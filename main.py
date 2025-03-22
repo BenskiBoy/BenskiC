@@ -4,7 +4,7 @@ import click
 from Lexer import Lexer
 from Parser import Parser, pretty_print
 from Tacky import Tacky
-from Assembler import AsmParser
+from Assembler import AssemblyParser
 import subprocess
 
 
@@ -62,9 +62,18 @@ def main(input_file, lex, parse, tacky, codegen, s, debug):
         ast = parser.parse()
         if debug:
             pretty_print(ast)
+        tacky = Tacky(ast, debug)
+        ir = tacky.emit_ir(ast)
+        if debug:
+            tacky.pretty_print(ir)
 
-        assembly = AsmParser(ast, input_file.name, debug)
-        assembly.parse()
+        assm = AssemblyParser()
+        assm.parse(ir)
+        if debug:
+            assm.pretty_print()
+
+        # assembly = AsmParser(ast, input_file.name, debug)
+        # assembly.parse()
 
     elif s:
         lexer = Lexer(content, debug)
@@ -77,10 +86,19 @@ def main(input_file, lex, parse, tacky, codegen, s, debug):
         if debug:
             pretty_print(ast)
 
-        assembly = AsmParser(ast, input_file.name, debug)
-        assembly.parse()
+        tacky = Tacky(ast, debug)
+        ir = tacky.emit_ir(ast)
+        if debug:
+            tacky.pretty_print(ir)
+
+        assm = AssemblyParser()
+        assm.parse(ir)
+
+        if debug:
+            assm.pretty_print()
+
         with open(input_file.name.replace(".c", ".s"), "w") as f:
-            content = assembly.generate()
+            content = assm.generate()
             f.write(content)
         if debug:
             print(content)

@@ -45,6 +45,32 @@ class IRVarNode(IRNode):
         return f"""IRVarNode({self.src})"""
 
 
+class IRProgramNode(IRNode):
+    def __init__(
+        self,
+    ) -> None:
+        super().__init__("PROGRAM", None, None)
+
+    def __str__(self) -> str:
+        return f"""IRProgramNode()"""
+
+    def __repr__(self) -> str:
+        return f"""IRProgramNode()"""
+
+
+class IRFunctionNode(IRNode):
+    def __init__(self, name: str, return_type) -> None:
+        super().__init__("Function", None, None)
+        self.name = name
+        self.return_type = return_type
+
+    def __str__(self) -> str:
+        return f"""IRFunctionNode({self.name}, {self.return_type})"""
+
+    def __repr__(self) -> str:
+        return f"""IRFunctionNode({self.name}, {self.return_type})"""
+
+
 class IRReturnNode(IRNode):
     def __init__(self, val: IRNode) -> None:
         super().__init__("RETURN", val, None)
@@ -90,10 +116,18 @@ class Tacky:
             return ir
 
         elif isinstance(ast, ProgramNode):
-            return self.emit_ir(ast.children[0], ir)
+            ir.append(IRProgramNode())
+
+            for child in ast.children:
+                if isinstance(child, FunctionNode):
+                    content = self.emit_ir(child, ir)
+            return ir
 
         elif isinstance(ast, FunctionNode):
-            return self.emit_ir(ast.children[0], ir)
+            ir.append(IRFunctionNode(ast.name, ast.return_type))
+            content = self.emit_ir(ast.children[0], ir)
+
+            return ir
 
         else:
             return ir

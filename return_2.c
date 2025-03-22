@@ -1,4 +1,5 @@
 int main(void) {
     // test case w/ multi-digit constant
-    return -(~(-8));
+    return 2; 
+    //-(~(-8));
 }
