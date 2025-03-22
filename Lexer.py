@@ -14,6 +14,10 @@ TOKENS = [
     (r"~", "TILDA"),
     (r"-", "HYPHEN"),
     (r"--", "DOUBLE_HYPHEN"),
+    (r"\+", "ADD"),
+    (r"\*", "MULTIPLY"),
+    (r"\/", "DIVIDE"),
+    (r"\%", "REMAINDER"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]
@@ -29,6 +33,9 @@ class Token:
 
     def __str__(self) -> str:
         return f"Token({self.type}, [  {self.value}  ])"
+
+    def __eq__(self, other) -> bool:
+        return self.type == other.type
 
 
 class Lexer:

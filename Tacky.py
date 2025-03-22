@@ -1,10 +1,24 @@
 from Parser import *
+from enum import Enum
+
+
+class IRUnaryOperator(Enum):
+    COMPLEMENT = "Complement"
+    NEGATE = "Negate"
+
+
+class IRBinaryOperator(Enum):
+    ADD = "Add"
+    SUBTRACT = "Subtract"
+    MULTIPLY = "Multiply"
+    DIVIDE = "Divide"
+    REMAINDER = "Remainder"
 
 
 class IRNode:
-    def __init__(self, op: str, src: ["IRNode"], dst: ["IRNode"]) -> None:
+    def __init__(self, op: str, sources: [["IRNode"]], dst: ["IRNode"]) -> None:
         self.op = op
-        self.src = src
+        self.sources = sources
         self.dst = dst
 
     def __str__(self) -> str:
@@ -24,32 +38,45 @@ class IRConstantNode(IRNode):
 
 
 class IRUnaryNode(IRNode):
-    def __init__(self, op: str, src: IRNode, dst: IRNode) -> None:
-        super().__init__(op, src, dst)
+    def __init__(self, op: IRUnaryOperator, src: IRNode, dst: IRNode) -> None:
+        super().__init__(op, [src], dst)
 
     def __str__(self) -> str:
-        return f"""IRUnaryNode({self.op}, {self.src}, {self.dst})"""
+        return f"""IRUnaryNode({self.op}, {self.sources[0]}, {self.dst})"""
 
     def __repr__(self) -> str:
-        return f"""IRUnaryNode({self.op}, {self.src}, {self.dst})"""
+        return f"""IRUnaryNode({self.op}, {self.sources[0]}, {self.dst})"""
+
+
+class IRBinaryNode(IRNode):
+    def __init__(
+        self, op: IRBinaryOperator, src_1: IRNode, src_2: IRNode, dst: IRNode
+    ) -> None:
+        super().__init__(op, [src_1, src_2], dst)
+
+    def __str__(self) -> str:
+        return f"""IRBinaryNode({self.op}, {self.sources[0]}, {self.sources[1]}, {self.dst})"""
+
+    def __repr__(self) -> str:
+        return f"""IRBinaryNode({self.op}, {self.sources[0]}, {self.sources[1]}, {self.dst})"""
 
 
 class IRVarNode(IRNode):
     def __init__(self, name: str) -> None:
-        super().__init__("VAR", name, None)
+        super().__init__("VAR", [name], [])
 
     def __str__(self) -> str:
-        return f"""IRVarNode({self.src})"""
+        return f"""IRVarNode({self.sources[0]})"""
 
     def __repr__(self) -> str:
-        return f"""IRVarNode({self.src})"""
+        return f"""IRVarNode({self.sources[0]})"""
 
 
 class IRProgramNode(IRNode):
     def __init__(
         self,
     ) -> None:
-        super().__init__("PROGRAM", None, None)
+        super().__init__("PROGRAM", None, [])
 
     def __str__(self) -> str:
         return f"""IRProgramNode()"""
@@ -60,7 +87,7 @@ class IRProgramNode(IRNode):
 
 class IRFunctionNode(IRNode):
     def __init__(self, name: str, return_type) -> None:
-        super().__init__("Function", None, None)
+        super().__init__("Function", None, [])
         self.name = name
         self.return_type = return_type
 
@@ -73,13 +100,13 @@ class IRFunctionNode(IRNode):
 
 class IRReturnNode(IRNode):
     def __init__(self, val: IRNode) -> None:
-        super().__init__("RETURN", val, None)
+        super().__init__("RETURN", [val], None)
 
     def __str__(self) -> str:
-        return f"""IRReturnNode({self.src})"""
+        return f"""IRReturnNode({self.sources[0]})"""
 
     def __repr__(self) -> str:
-        return f"""IRReturnNode({self.src})"""
+        return f"""IRReturnNode({self.sources[0]})"""
 
 
 class Tacky:
@@ -94,15 +121,15 @@ class Tacky:
 
     def convert_unop(self, op: str) -> str:
         if op == "~":
-            return "COMPLEMENT"
+            return IRUnaryOperator.COMPLEMENT
         elif op == "-":
-            return "NEGATE"
+            return IRUnaryOperator.NEGATE
 
     def emit_ir(self, ast: ASTNode, ir: list[IRNode] = []):
 
-        if ast.type == "CONSTANT":
+        if isinstance(ast, ConstantNode):
             return IRConstantNode(ast.value)
-        elif ast.type == "UNARY":
+        elif isinstance(ast, UnaryNode):
             src = self.emit_ir(ast.children[0], ir)
             dst = IRVarNode(self.make_temporary())
             tacky_op = self.convert_unop(ast.operator)
@@ -128,6 +155,13 @@ class Tacky:
             content = self.emit_ir(ast.children[0], ir)
 
             return ir
+
+        elif isinstance(ast, BinaryNode):
+            src_1 = self.emit_ir(ast.children[0], ir)
+            src_2 = self.emit_ir(ast.children[1], ir)
+            dst = IRVarNode(self.make_temporary())
+            ir.append(IRBinaryNode(ast.operator, src_1, src_2, dst))
+            return dst
 
         else:
             return ir

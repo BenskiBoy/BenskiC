@@ -77,6 +77,22 @@ class RegR10(Reg):
         return "%r10d"
 
 
+class RegDX(Reg):
+    def __init__(self):
+        super().__init__()
+
+    def __str__(self):
+        return "%rxd"
+
+
+class RegR11(Reg):
+    def __init__(self):
+        super().__init__()
+
+    def __str__(self):
+        return "%r11d"
+
+
 ###########################################
 
 
