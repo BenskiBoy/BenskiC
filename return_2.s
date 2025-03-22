@@ -1,11 +1,15 @@
-   .global main
+      .global main
+
+
 main:
    pushq   %rbp
    movq    %rsp, %rbp
-   subq   $0, %rsp
 
-
-   movl   $2, %eax
+   subq   $4, %rsp
+   movl   $5, -4(%rbp)
+   notl   -4(%rbp)
+   movl   -4(%rbp), %eax
    movq    %rbp, %rsp
    popq    %rbp
    ret
+   .section .note.GNU-stack,"",@progbits

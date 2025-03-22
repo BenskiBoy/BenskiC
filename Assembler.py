@@ -6,34 +6,18 @@ from collections import defaultdict
 
 
 class Program:
-    def __init__(self):
-        pass
+    def __init__(self, program_name):
+        self.globalls = []
+        self.program_name = program_name
+
+    def _gen_globals(self):
+        res = ""
+        for globall in self.globalls:
+            res += f"   .global {globall}\n"
+        return res
 
     def __str__(self):
-        return ".section .not.GNU-stack," ",@progbits"
-
-
-###########################################
-
-
-class Function:
-    def __init__(self, name):
-        self.name = name
-
-    def set_stack_size(self, stack_size: int = 0):
-        self.stack_size = stack_size
-
-    def __repr__(self):
-        return f"Func[{self.name}]"
-
-    def __str__(self):
-        return f"""
-   .global {self.name}
-{self.name}:
-   pushq   %rbp
-   movq    %rsp, %rbp
-   subq    ${self.stack_size}, %rsp
-"""
+        return f"""   {self._gen_globals()}"""
 
 
 ###########################################
@@ -149,7 +133,8 @@ class Instruction:
             return f"{self.__class__.__name__} {repr(self.arg_1)}, {repr(self.arg_2)}"
 
     def __str__(self) -> str:
-        return f"   {self.command} {str(self.arg_1)}, {str(self.arg_2)}"
+
+        return f"   {self.command}   {str(self.arg_1)}{str(self.arg_2)}"
 
 
 class InstructionMov(Instruction):
@@ -165,7 +150,7 @@ class InstructionUnary(Instruction):
         super().__init__("Unary", unary_operator, operand)
 
     def __str__(self):
-        return f"   {self.arg_1} {self.arg_2}"
+        return f"   {self.arg_1}   {self.arg_2}"
 
 
 class InstructionAllocateStack(Instruction):
@@ -192,20 +177,65 @@ class InstructionRet(Instruction):
 ###########################################
 
 
+class Function:
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return f"Func[{self.name}]"
+
+    def __str__(self):
+        return f"""
+{self.name}:
+   pushq   %rbp
+   movq    %rsp, %rbp
+"""
+
+
+###########################################
+
+
 class AssemblyParser:
 
-    def __init__(self) -> None:
-        self.instructions = []
-        self.stack_counter = -4
-        self.stack_tracker = {}
+    def __init__(self, program_name: str) -> None:
+        self.program_name = program_name.replace("./", "")
 
-    def get_stack_pntr(self, pseudo_name=str) -> None:
-        if pseudo_name not in self.stack_tracker:
-            self.stack_tracker[pseudo_name] = self.stack_counter
-            self.stack_counter -= 4
-            return self.stack_tracker[pseudo_name]
+        self.instructions = defaultdict(list)
+        self.stack_tracker = defaultdict(dict)
+
+    def generate_stack_pntr(self, pseudo_name: str, function_name: str = "") -> int:
+        if (
+            function_name not in self.stack_tracker.keys()
+            or pseudo_name not in self.stack_tracker[function_name]
+        ):
+            self.stack_tracker[function_name][
+                pseudo_name
+            ] = -4  # if function name doesn't exist, neitgher will pseudoname
+            return self.stack_tracker[function_name][pseudo_name]
         else:
-            return self.stack_tracker[pseudo_name]
+            self.stack_tracker[function_name][pseudo_name] = (
+                self.get_function_stack_size(function_name) - 4
+            )
+            return self.stack_tracker[function_name][pseudo_name]
+
+        # if (
+        #     function_name not in self.stack_tracker.keys()
+        #     or pseudo_name not in self.stack_tracker[function_name]
+        # ):
+        #     self.stack_tracker[function_name][
+        #         pseudo_name
+        #     ] = -4  # if function name doesn't exist, neitgher will pseudoname
+        #     return self.stack_tracker[function_name][pseudo_name]
+        # else:
+        #     self.stack_tracker[function_name][pseudo_name] -= 4
+        #     return self.stack_tracker[function_name][pseudo_name]
+
+    def get_function_stack_size(self, function_name: str) -> int:
+        max_size = 0
+        for pseudo_name in self.stack_tracker[function_name].keys():
+            if self.stack_tracker[function_name][pseudo_name] > max_size:
+                max_size = self.stack_tracker[function_name][pseudo_name]
+        return max_size
 
     def _parse_unary(self, op: str) -> UnaryOperator:
         if op == "NEGATE":
@@ -223,139 +253,94 @@ class AssemblyParser:
 
     def parse_unary(self, node: UnaryNode):
 
-        self.instructions.append(
-            InstructionMov(self._parse_operand(node.src), self._parse_operand(node.dst))
-        )
-        self.instructions.append(
-            InstructionUnary(self._parse_unary(node.op), self._parse_operand(node.dst))
-        )
+        return [
+            InstructionMov(
+                self._parse_operand(node.src), self._parse_operand(node.dst)
+            ),
+            InstructionUnary(self._parse_unary(node.op), self._parse_operand(node.dst)),
+        ]
 
     def parse_return(self, node: IRReturnNode):
-        self.instructions.append(InstructionMov(self._parse_operand(node.src), RegAX()))
-        self.instructions.append(InstructionRet())
-
-    def parse_function(self, node: FunctionNode):
-        self.instructions.append(Function(node.name))
-
-    def parse_program(self, node: IRProgramNode):
-        self.instructions.append(Program())
+        return [
+            InstructionMov(self._parse_operand(node.src), RegAX()),
+            InstructionRet(),
+        ]
 
     def parse_constant(self, node: IRConstantNode):
         self.instructions.append(OperandImmediate(node.value))
 
     def parse(self, tacky: list[IRNode]):
 
+        current_func_name = ""
         for i, tack in enumerate(tacky):
             if isinstance(tack, IRProgramNode):
-                self.parse_program(tack)
+                self.instructions["__PROGRAM__"].append(Program(self.program_name))
 
             elif isinstance(tack, IRFunctionNode):
-                self.parse_function(tack)
+
+                self.instructions[tack.name].append(Function(tack.name))
+                current_func_name = tack.name
+                self.instructions["__PROGRAM__"][0].globalls.append(tack.name)
 
             elif isinstance(tack, IRReturnNode):
-                self.parse_return(tack)
+                self.instructions[current_func_name].extend(self.parse_return(tack))
 
             elif isinstance(tack, IRUnaryNode):
-                self.parse_unary(tack)
+                self.instructions[current_func_name].extend(self.parse_unary(tack))
+
             else:
                 raise Exception(f"Unknown IR {tack}")
 
         # Replace OperandPseudo with stack locations
-        for i, inst in enumerate(self.instructions):
-            if isinstance(inst, InstructionMov):
-                if isinstance(inst.arg_1, OperandPseudo):
-                    self.instructions[i].arg_1 = OperandStack(
-                        self.get_stack_pntr(inst.arg_1.value)
-                    )
-                if isinstance(inst.arg_2, OperandPseudo):
-                    self.instructions[i].arg_2 = OperandStack(
-                        self.get_stack_pntr(inst.arg_2.value)
-                    )
-            elif isinstance(inst, InstructionUnary):
-                if isinstance(inst.arg_2, OperandPseudo):
-                    self.instructions[i].arg_2 = OperandStack(
-                        self.get_stack_pntr(inst.arg_2.value)
-                    )
+        for j, func in enumerate(self.instructions.keys()):
+            for i, inst in enumerate(self.instructions[func]):
 
-        # add stack allocation
-        # self.instructions.insert(1, InstructionAllocateStack(self.stack_counter + 4))
+                if isinstance(inst, InstructionMov):
+                    if isinstance(inst.arg_1, OperandPseudo):
 
-        # fix invalid mov instructions (can't move stack values, need intermediary reg)
-        for i, inst in enumerate(self.instructions):
-            if isinstance(inst, InstructionMov):
-                if isinstance(inst.arg_1, OperandStack) and isinstance(
-                    inst.arg_2, OperandStack
-                ):
-                    dest = inst.arg_2
-                    self.instructions[i].arg_2 = RegR10()
-                    self.instructions.insert(i + 1, InstructionMov(RegR10(), dest))
-                    # self.instructions.insert(i, InstructionMov(inst.arg_1, RegR10()))
-                    # self.instructions[i + 1].arg_2 = RegR10()
-                    # self.instructions.insert(
-                    #     i + 2, InstructionMov(RegR10(), inst.arg_2)
-                    # )
-                    # self.instructions.pop(i)
+                        self.instructions[func][i].arg_1 = OperandStack(
+                            self.generate_stack_pntr(inst.arg_1.value, func)
+                        )
+                    if isinstance(inst.arg_2, OperandPseudo):
+                        self.instructions[func][i].arg_2 = OperandStack(
+                            self.generate_stack_pntr(inst.arg_2.value, func)
+                        )
+                elif isinstance(inst, InstructionUnary):
+                    if isinstance(inst.arg_2, OperandPseudo):
+                        self.instructions[func][i].arg_2 = OperandStack(
+                            self.generate_stack_pntr(inst.arg_2.value, func)
+                        )
+
+            # add stack allocation
+            if func in self.stack_tracker.keys():
+                self.instructions[func].insert(
+                    1, InstructionAllocateStack(self.get_function_stack_size(func) + 4)
+                )
+
+            # fix invalid mov instructions (can't move stack values, need intermediary reg)
+            for i, inst in enumerate(self.instructions[func]):
+                if isinstance(inst, InstructionMov):
+                    if isinstance(inst.arg_1, OperandStack) and isinstance(
+                        inst.arg_2, OperandStack
+                    ):
+
+                        dest = inst.arg_2
+                        self.instructions[func][i].arg_2 = RegR10()
+                        self.instructions[func].insert(
+                            i + 1, InstructionMov(RegR10(), dest)
+                        )
 
     def pretty_print(self):
-        for inst in self.instructions:
-            print(repr(inst))
+        for func in self.instructions.keys():
+            for inst in self.instructions[func]:
+                print(repr(inst))
 
     def generate(self):
         res = ""
-        for instr in self.instructions:
-            res += str(instr) + "\n"
+        for func in self.instructions.keys():
+            for instr in self.instructions[func]:
+                res += str(instr) + "\n"
+
+        res += '   .section .note.GNU-stack,"",@progbits\n'
+
         return res
-
-
-# ASSEMBLY_NODE_LOOKUP = {
-#     IRConstantNode: lambda self, node: self.parse_constant(node),
-#     IRReturnNode: lambda self, node: self.parse_return(node),
-#     IRUnaryNode: lambda self, node: self.parse_unary(node),
-#     IRFunctionNode: lambda self, node: self.parse_function(node),
-#     IRProgramNode: lambda self, node: self.parse_program(node),
-# }
-
-
-# class AsmParser:
-#     def __init__(self, ast, input_file_name, debug) -> None:
-#         self.ast = ast
-#         self.assembly_parser = AssemblyParser()
-#         self.input_file_name = input_file_name
-#         self.debug = debug
-
-#     def parse(self) -> list[str]:
-
-#         def _parse(ast):
-
-#             for child in ast.children:
-#                 ASSEMBLY_NODE_LOOKUP[child.__class__](self.assembly_parser, child)
-#                 if len(child.children) > 0:
-#                     _parse(child)
-
-#         _parse(self.ast)
-
-#         return self.assembly_parser.instructions
-
-#     def generate(self):
-
-#         content = ""
-
-#         content += f'  .file "{self.input_file_name}"\n'
-#         content += f"  .text\n"
-
-#         for glob in self.assembly_parser.globals:
-#             content += f"  .global {glob.args[0]}\n"
-
-#         for typ in self.assembly_parser.types:
-#             content += f"  .type {typ.args[0]}, {typ.args[1]}\n"
-
-#         for inst in self.assembly_parser.instructions:
-#             if str(inst)[-1] == ":":
-#                 content += str(inst) + "\n"
-#             else:
-#                 content += f"  {str(inst)}" + "\n"
-
-#         content += f'  .ident  "GCC: (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0"\n'
-#         content += f'  .section  .note.GNU-stack,"",@progbits\n'
-
-#         return content

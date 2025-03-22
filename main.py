@@ -91,7 +91,7 @@ def main(input_file, lex, parse, tacky, codegen, s, debug):
         if debug:
             tacky.pretty_print(ir)
 
-        assm = AssemblyParser()
+        assm = AssemblyParser(input_file.name.replace(".c", ".s"))
         assm.parse(ir)
 
         if debug:
@@ -114,10 +114,15 @@ def main(input_file, lex, parse, tacky, codegen, s, debug):
         if debug:
             pretty_print(ast)
 
-        assembly = AsmParser(ast, input_file.name, debug)
-        assembly.parse()
+        tacky = Tacky(ast, debug)
+        ir = tacky.emit_ir(ast)
+        if debug:
+            tacky.pretty_print(ir)
+
+        assm = AssemblyParser(input_file.name.replace(".c", ".s"))
+        assm.parse(ir)
         with open(input_file.name.replace(".c", ".s"), "w") as f:
-            content = assembly.generate()
+            content = assm.generate()
             f.write(content)
         if debug:
             print(content)
