@@ -3,6 +3,7 @@
 import click
 from Lexer import Lexer
 from Parser import Parser, pretty_print
+from Tacky import Tacky
 from Assembler import AsmParser
 import subprocess
 
@@ -11,10 +12,11 @@ import subprocess
 @click.argument("input_file", type=click.File("r"))
 @click.option("--lex", is_flag=True, help="Lex the input file")
 @click.option("--parse", is_flag=True, help="Parse the input file")
+@click.option("--tacky", is_flag=True, help="Tacky the input file")
 @click.option("--codegen", is_flag=True, help="Generate the AST")
 @click.option("-s", is_flag=True, help="Generate assembly")
 @click.option("--debug", is_flag=True, help="Debug")
-def main(input_file, lex, parse, codegen, s, debug):
+def main(input_file, lex, parse, tacky, codegen, s, debug):
 
     content = input_file.read()
 
@@ -34,6 +36,21 @@ def main(input_file, lex, parse, codegen, s, debug):
         ast = parser.parse()
         if debug:
             pretty_print(ast)
+
+    elif tacky:
+        lexer = Lexer(content, debug)
+        tokens = lexer.lex()
+        if debug:
+            print(str(lexer))
+
+        parser = Parser(tokens, debug)
+        ast = parser.parse()
+        if debug:
+            pretty_print(ast)
+        tacky = Tacky(ast, debug)
+        ir = tacky.emit_ir(ast)
+        if debug:
+            tacky.pretty_print(ir)
 
     elif codegen:
         lexer = Lexer(content, debug)
