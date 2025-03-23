@@ -2,9 +2,9 @@
 
 import click
 from Lexer import Lexer
-from Parser import Parser, pretty_print
-from Tacky import Tacky
-from Assembler import AssemblyParser
+from parser.Parser import Parser, pretty_print
+from tacky.Tacky import Tacky
+from assembler.Assembler import AssemblyParser
 import subprocess
 
 

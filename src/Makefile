@@ -1,7 +1,7 @@
 .PHONY: full_run
 
 test:
-	tester/test_compiler /home/benth/programming/c_compiler/main.py --chapter 3 --bitwise
+	../tester/test_compiler /home/benth/programming/c_compiler/src/main.py --chapter 3 --bitwise
 
 compile:
 	gcc return_2.s -o return_2
