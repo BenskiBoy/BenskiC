@@ -18,6 +18,13 @@ TOKENS = [
     (r"\*", "MULTIPLY"),
     (r"\/", "DIVIDE"),
     (r"\%", "REMAINDER"),
+    (r"&", "AND_BITWISE"),
+    (r"\|", "OR_BITWISE"),
+    (r"\^", "XOR_BITWISE"),
+    (r"<", "LESS_THAN"),
+    (r"<<", "LEFT_SHIFT"),
+    (r">", "GREATER_THAN"),
+    (r">>", "RIGHT_SHIFT"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]
@@ -64,6 +71,10 @@ class Lexer:
             # skip multiline comments
             elif self.content[0:2] == "/*":
                 self.content = self.content.split("*/", 1)[1]
+
+            # skip hash functions...for now!
+            elif self.content[0] == "#":
+                self.content = self.content.split("\n", 1)[1]
 
             else:
 

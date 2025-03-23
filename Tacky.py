@@ -22,7 +22,7 @@ class IRNode:
         self.dst = dst
 
     def __str__(self) -> str:
-        return f"""IRNode({self.op}, {self.src}, {self.dst})"""
+        return f"""IRNode({self.op}, {self.sources}, {self.dst})"""
 
 
 class IRConstantNode(IRNode):
@@ -120,10 +120,12 @@ class Tacky:
         return f"tmp.{self.temp_name_counter-1}"
 
     def convert_unop(self, op: str) -> str:
-        if op == "~":
+        if op == UnaryOperatorNode.COMPLEMENT:
             return IRUnaryOperator.COMPLEMENT
-        elif op == "-":
+        elif op == UnaryOperatorNode.NEGATE:
             return IRUnaryOperator.NEGATE
+        else:
+            raise ValueError(f"Unknown unary operator: {op}")
 
     def emit_ir(self, ast: ASTNode, ir: list[IRNode] = []):
 

@@ -67,7 +67,7 @@ def main(input_file, lex, parse, tacky, codegen, s, debug):
         if debug:
             tacky.pretty_print(ir)
 
-        assm = AssemblyParser()
+        assm = AssemblyParser(input_file.name.replace(".c", ".s"))
         assm.parse(ir)
         if debug:
             assm.pretty_print()

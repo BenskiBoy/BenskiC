@@ -15,14 +15,38 @@ class BinaryOperatorNode(Enum):
     MULTIPLY = "Multiply"
     DIVIDE = "Divide"
     REMAINDER = "Remainder"
+    AND = "And"
+    OR = "Or"
+    XOR = "Xor"
+    LEFT_SHIFT_LOGICAL = "LeftShiftLogical"
+    RIGHT_SHIFT_LOGICAL = "RightShiftLogical"
+    LEFT_SHIFT_ARITHMETIC = "LeftShiftArithmetic"
+    RIGHT_SHIFT_ARITHMETIC = "RightShiftArithmetic"
 
 
+# TOKEN_PRECEDENCE = {
+#     "ADD": 1,
+#     "HYPHEN": 1,
+#     "MULTIPLY": 2,
+#     "DIVIDE": 2,
+#     "REMAINDER": 2,
+#     "LEFT_SHIFT": 3,
+#     "RIGHT_SHIFT": 3,
+#     "AND_BITWISE": 4,
+#     "XOR_BITWISE": 5,
+#     "OR_BITWISE": 6,
+# }
 TOKEN_PRECEDENCE = {
-    "ADD": 1,
-    "HYPHEN": 1,
-    "MULTIPLY": 2,
-    "DIVIDE": 2,
-    "REMAINDER": 2,
+    "OR_BITWISE": 1,
+    "XOR_BITWISE": 2,
+    "AND_BITWISE": 3,
+    "RIGHT_SHIFT": 4,
+    "LEFT_SHIFT": 4,
+    "ADD": 5,
+    "HYPHEN": 5,
+    "MULTIPLY": 6,
+    "DIVIDE": 6,
+    "REMAINDER": 6,
 }
 
 BINARY_TOKENS = [
@@ -31,6 +55,11 @@ BINARY_TOKENS = [
     Token("MULTIPLY"),
     Token("DIVIDE"),
     Token("REMAINDER"),
+    Token("AND_BITWISE"),
+    Token("OR_BITWISE"),
+    Token("XOR_BITWISE"),
+    Token("LEFT_SHIFT"),
+    Token("RIGHT_SHIFT"),
 ]
 
 
@@ -180,7 +209,9 @@ class Parser:
             next_token in BINARY_TOKENS
             and TOKEN_PRECEDENCE[next_token.type] >= min_prec
         ):
-            operator = self.parse_binary_operator(next_token)
+            operator = self.parse_binary_operator(
+                next_token, left.operator == UnaryOperatorNode.NEGATE
+            )
             tokens = tokens[1:]
             tokens, right = self.parse_expression(
                 tokens, TOKEN_PRECEDENCE[next_token.type] + 1
@@ -199,7 +230,7 @@ class Parser:
             tokens, operator = self.parse_unary(tokens)
             tokens, inner_expression = self.parse_factor(tokens)
 
-            return tokens, UnaryNode(operator, inner_expression)
+            return tokens, UnaryNode(inner_expression, operator)
 
         elif next_token.type == "OPEN_PAREN":
             tokens = tokens[1:]
@@ -220,7 +251,11 @@ class Parser:
 
         return tokens[1:], unary_operator
 
-    def parse_binary_operator(self, token) -> BinaryOperatorNode:
+    def parse_binary_operator(
+        self, token, negated_left_value
+    ) -> (
+        BinaryOperatorNode
+    ):  # if the left value is negated, then the left shift is arithmetic
         if token == Token("ADD"):
             return BinaryOperatorNode.ADD
         elif token == Token("HYPHEN"):
@@ -231,6 +266,22 @@ class Parser:
             return BinaryOperatorNode.DIVIDE
         elif token == Token("REMAINDER"):
             return BinaryOperatorNode.REMAINDER
+        elif token == Token("AND_BITWISE"):
+            return BinaryOperatorNode.AND
+        elif token == Token("OR_BITWISE"):
+            return BinaryOperatorNode.OR
+        elif token == Token("XOR_BITWISE"):
+            return BinaryOperatorNode.XOR
+        elif token == Token("LEFT_SHIFT"):
+            if negated_left_value:
+                return BinaryOperatorNode.LEFT_SHIFT_ARITHMETIC
+            else:
+                return BinaryOperatorNode.LEFT_SHIFT_LOGICAL
+        elif token == Token("RIGHT_SHIFT"):
+            if negated_left_value:
+                return BinaryOperatorNode.RIGHT_SHIFT_ARITHMETIC
+            else:
+                return BinaryOperatorNode.RIGHT_SHIFT_LOGICAL
         else:
             raise Exception(f"Unrecognised Binary Operator {token.value}")
 
