@@ -25,6 +25,13 @@ TOKENS = [
     (r"<<", "LEFT_SHIFT"),
     (r">", "GREATER_THAN"),
     (r">>", "RIGHT_SHIFT"),
+    (r"!", "NOT"),
+    (r"&&", "AND_LOGICAL"),
+    (r"\|\|", "OR_LOGICAL"),
+    (r"==", "EQUAL"),
+    (r"!=", "NOT_EQUAL"),
+    (r"<=", "LESS_OR_EQUAL"),
+    (r">=", "GREATER_OR_EQUAL"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]

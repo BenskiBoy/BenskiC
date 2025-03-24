@@ -10,6 +10,7 @@ from Lexer import Token
 class UnaryOperatorNode(Enum):
     COMPLEMENT = "Complement"
     NEGATE = "Negate"
+    NOT = "Not"
 
 
 class BinaryOperatorNode(Enum):
@@ -25,19 +26,37 @@ class BinaryOperatorNode(Enum):
     RIGHT_SHIFT_LOGICAL = "RightShiftLogical"
     LEFT_SHIFT_ARITHMETIC = "LeftShiftArithmetic"
     RIGHT_SHIFT_ARITHMETIC = "RightShiftArithmetic"
+    AND_LOGICAL = "AndLogical"
+    OR_LOGICAL = "OrLogical"
+    EQUAL = "Equal"
+    NOT_EQUAL = "NotEqual"
+    LESS_THAN = "LessThan"
+    GREATER_THAN = "GreaterThan"
+    LESS_OR_EQUAL = "LessOrEqual"
+    GREATER_OR_EQUAL = "GreaterOrEqual"
 
 
 TOKEN_PRECEDENCE = {
-    "OR_BITWISE": 1,
-    "XOR_BITWISE": 2,
-    "AND_BITWISE": 3,
-    "RIGHT_SHIFT": 4,
-    "LEFT_SHIFT": 4,
-    "ADD": 5,
-    "HYPHEN": 5,
-    "MULTIPLY": 6,
-    "DIVIDE": 6,
-    "REMAINDER": 6,
+    "OR_LOGICAL": 2,
+    "AND_LOGICAL": 3,
+    "OR_LOGICAL": 4,
+    "AND_LOGICAL": 5,
+    "OR_BITWISE": 10,
+    "XOR_BITWISE": 10,
+    "AND_BITWISE": 10,
+    "NOT_EQUAL": 11,
+    "EQUAL": 11,
+    "GREATER_OR_EQUAL": 12,
+    "LESS_OR_EQUAL": 12,
+    "GREATER_THAN": 12,
+    "LESS_THAN": 12,
+    "RIGHT_SHIFT": 13,
+    "LEFT_SHIFT": 13,
+    "ADD": 14,
+    "HYPHEN": 14,
+    "MULTIPLY": 15,
+    "DIVIDE": 15,
+    "REMAINDER": 15,
 }
 
 BINARY_TOKENS = [
@@ -51,6 +70,14 @@ BINARY_TOKENS = [
     Token("XOR_BITWISE"),
     Token("LEFT_SHIFT"),
     Token("RIGHT_SHIFT"),
+    Token("AND_LOGICAL"),
+    Token("OR_LOGICAL"),
+    Token("EQUAL"),
+    Token("NOT_EQUAL"),
+    Token("LESS_OR_EQUAL"),
+    Token("GREATER_OR_EQUAL"),
+    Token("LESS_THAN"),
+    Token("GREATER_THAN"),
 ]
 
 

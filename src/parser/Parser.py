@@ -69,7 +69,11 @@ class Parser:
         next_token = tokens[0]
         if next_token.type == "CONSTANT":
             return self.parse_constant(tokens)
-        elif next_token.type == "TILDA" or next_token.type == "HYPHEN":
+        elif (
+            next_token.type == "TILDA"
+            or next_token.type == "HYPHEN"
+            or next_token.type == "NOT"
+        ):
             tokens, operator = self.parse_unary(tokens)
             tokens, inner_expression = self.parse_factor(tokens)
 
@@ -89,6 +93,8 @@ class Parser:
             unary_operator = UnaryOperatorNode.COMPLEMENT
         elif tokens[0].value == "-":
             unary_operator = UnaryOperatorNode.NEGATE
+        elif tokens[0].value == "!":
+            unary_operator = UnaryOperatorNode.NOT
         else:
             raise Exception(f"Unrecognised Unary Operator {tokens[0].value}")
 
@@ -125,6 +131,22 @@ class Parser:
                 return BinaryOperatorNode.RIGHT_SHIFT_ARITHMETIC
             else:
                 return BinaryOperatorNode.RIGHT_SHIFT_LOGICAL
+        elif token == Token("AND_LOGICAL"):
+            return BinaryOperatorNode.AND
+        elif token == Token("OR_LOGICAL"):
+            return BinaryOperatorNode.OR
+        elif token == Token("EQUAL"):
+            return BinaryOperatorNode.EQUAL
+        elif token == Token("NOT_EQUAL"):
+            return BinaryOperatorNode.NOT_EQUAL
+        elif token == Token("LESS_OR_EQUAL"):
+            return BinaryOperatorNode.LESS_OR_EQUAL
+        elif token == Token("GREATER_OR_EQUAL"):
+            return BinaryOperatorNode.GREATER_OR_EQUAL
+        elif token == Token("LESS_THAN"):
+            return BinaryOperatorNode.LESS_THAN
+        elif token == Token("GREATER_THAN"):
+            return BinaryOperatorNode.GREATER_THAN
         else:
             raise Exception(f"Unrecognised Binary Operator {token.value}")
 
