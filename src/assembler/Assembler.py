@@ -71,7 +71,9 @@ class AssemblyParser:
         if node.op == IRUnaryOperator.NOT:
             return [
                 InstructionCmp(
-                    OperandImmediate(0), self._parse_operand(node.sources[0])
+                    OperandImmediate(0),
+                    self._parse_operand(node.sources[0]),
+                    "Performing NOT",
                 ),
                 InstructionMov(OperandImmediate(0), self._parse_operand(node.dst)),
                 InstructionSetCC(ConditionCodeEqual(), self._parse_operand(node.dst)),
@@ -79,7 +81,9 @@ class AssemblyParser:
         elif node.op in [IRUnaryOperator.COMPLEMENT, IRUnaryOperator.NEGATE]:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    f"Performing {node.op}",
                 ),
                 InstructionUnary(
                     self._parse_unary_type(node.op), self._parse_operand(node.dst)
@@ -101,7 +105,9 @@ class AssemblyParser:
         if node.op == IRBinaryOperator.ADD:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing ADD",
                 ),
                 InstructionBinary(
                     BinaryOperatorAdd(),
@@ -112,7 +118,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.SUBTRACT:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing SUBTRACT",
                 ),
                 InstructionBinary(
                     BinaryOperatorSub(),
@@ -123,7 +131,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.MULTIPLY:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing MULTIPLY",
                 ),
                 InstructionBinary(
                     BinaryOperatorMult(),
@@ -133,14 +143,20 @@ class AssemblyParser:
             ]
         elif node.op == IRBinaryOperator.DIVIDE:
             return [
-                InstructionMov(self._parse_operand(node.sources[0]), RegAX()),
+                InstructionMov(
+                    self._parse_operand(node.sources[0]), RegAX(), "Performing DIVIDE"
+                ),
                 InstructionCdq(),
                 InstructionIdiv(self._parse_operand(node.sources[1])),
                 InstructionMov(RegAX(), self._parse_operand(node.dst)),
             ]
         elif node.op == IRBinaryOperator.REMAINDER:
             return [
-                InstructionMov(self._parse_operand(node.sources[0]), RegAX()),
+                InstructionMov(
+                    self._parse_operand(node.sources[0]),
+                    RegAX(),
+                    "Performing REMAINDER",
+                ),
                 InstructionCdq(),
                 InstructionIdiv(self._parse_operand(node.sources[1])),
                 InstructionMov(RegDX(), self._parse_operand(node.dst)),
@@ -148,7 +164,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.AND_BITWISE:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing AND_BITWISE",
                 ),
                 InstructionBinary(
                     BinaryOperatorAnd(),
@@ -159,7 +177,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.OR_BITWISE:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing OR_BITWISE",
                 ),
                 InstructionBinary(
                     BinaryOperatorOr(),
@@ -170,7 +190,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.XOR_BITWISE:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing XOR_BITWISE",
                 ),
                 InstructionBinary(
                     BinaryOperatorXor(),
@@ -181,7 +203,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.LEFT_SHIFT_LOGICAL:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing LEFT_SHIFT_LOGICAL",
                 ),
                 InstructionBinary(
                     BinaryOperatorLeftShiftLogical(),
@@ -192,7 +216,9 @@ class AssemblyParser:
         elif node.op == IRBinaryOperator.RIGHT_SHIFT_LOGICAL:
             return [
                 InstructionMov(
-                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                    self._parse_operand(node.sources[0]),
+                    self._parse_operand(node.dst),
+                    "Performing RIGHT_SHIFT_LOGICAL",
                 ),
                 InstructionBinary(
                     BinaryOperatorRightShiftLogical(),
