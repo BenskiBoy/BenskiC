@@ -19,9 +19,9 @@ class BinaryOperatorNode(Enum):
     MULTIPLY = "Multiply"
     DIVIDE = "Divide"
     REMAINDER = "Remainder"
-    AND = "And"
-    OR = "Or"
-    XOR = "Xor"
+    AND_BITWISE = "AndBitwise"
+    OR_BITWISE = "OrBitwise"
+    XOR_BITWISE = "XorBitwise"
     LEFT_SHIFT_LOGICAL = "LeftShiftLogical"
     RIGHT_SHIFT_LOGICAL = "RightShiftLogical"
     LEFT_SHIFT_ARITHMETIC = "LeftShiftArithmetic"
@@ -34,6 +34,32 @@ class BinaryOperatorNode(Enum):
     GREATER_THAN = "GreaterThan"
     LESS_OR_EQUAL = "LessOrEqual"
     GREATER_OR_EQUAL = "GreaterOrEqual"
+
+
+NON_SHORT_CIRCUIT_BINARY_OPERATORS = [
+    BinaryOperatorNode.ADD,
+    BinaryOperatorNode.SUBTRACT,
+    BinaryOperatorNode.MULTIPLY,
+    BinaryOperatorNode.DIVIDE,
+    BinaryOperatorNode.REMAINDER,
+    BinaryOperatorNode.AND_BITWISE,
+    BinaryOperatorNode.OR_BITWISE,
+    BinaryOperatorNode.XOR_BITWISE,
+    BinaryOperatorNode.LEFT_SHIFT_LOGICAL,
+    BinaryOperatorNode.RIGHT_SHIFT_LOGICAL,
+    BinaryOperatorNode.LEFT_SHIFT_ARITHMETIC,
+    BinaryOperatorNode.RIGHT_SHIFT_ARITHMETIC,
+    BinaryOperatorNode.EQUAL,
+    BinaryOperatorNode.NOT_EQUAL,
+    BinaryOperatorNode.LESS_THAN,
+    BinaryOperatorNode.GREATER_THAN,
+    BinaryOperatorNode.LESS_OR_EQUAL,
+    BinaryOperatorNode.GREATER_OR_EQUAL,
+]
+SHORT_CIRCUIT_BINARY_OPERATORS = [
+    BinaryOperatorNode.AND_LOGICAL,
+    BinaryOperatorNode.OR_LOGICAL,
+]
 
 
 TOKEN_PRECEDENCE = {

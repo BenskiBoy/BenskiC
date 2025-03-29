@@ -116,11 +116,11 @@ class Parser:
         elif token == Token("REMAINDER"):
             return BinaryOperatorNode.REMAINDER
         elif token == Token("AND_BITWISE"):
-            return BinaryOperatorNode.AND
+            return BinaryOperatorNode.AND_BITWISE
         elif token == Token("OR_BITWISE"):
-            return BinaryOperatorNode.OR
+            return BinaryOperatorNode.OR_BITWISE
         elif token == Token("XOR_BITWISE"):
-            return BinaryOperatorNode.XOR
+            return BinaryOperatorNode.XOR_BITWISE
         elif token == Token("LEFT_SHIFT"):
             if negated_left_value:
                 return BinaryOperatorNode.LEFT_SHIFT_ARITHMETIC
@@ -132,9 +132,9 @@ class Parser:
             else:
                 return BinaryOperatorNode.RIGHT_SHIFT_LOGICAL
         elif token == Token("AND_LOGICAL"):
-            return BinaryOperatorNode.AND
+            return BinaryOperatorNode.AND_LOGICAL
         elif token == Token("OR_LOGICAL"):
-            return BinaryOperatorNode.OR
+            return BinaryOperatorNode.OR_LOGICAL
         elif token == Token("EQUAL"):
             return BinaryOperatorNode.EQUAL
         elif token == Token("NOT_EQUAL"):

@@ -116,7 +116,7 @@ class AssemblyParser:
                 InstructionIdiv(self._parse_operand(node.sources[1])),
                 InstructionMov(RegDX(), self._parse_operand(node.dst)),
             ]
-        elif node.op == BinaryOperatorNode.AND:
+        elif node.op == BinaryOperatorNode.AND_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -127,7 +127,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.OR:
+        elif node.op == BinaryOperatorNode.OR_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -138,7 +138,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.XOR:
+        elif node.op == BinaryOperatorNode.XOR_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
