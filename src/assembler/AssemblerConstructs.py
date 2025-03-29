@@ -239,6 +239,9 @@ class RegAX(Reg):
     def __str__(self):
         return "%eax"
 
+    def _repr_single_byte(self):
+        return "%al"
+
 
 class RegR10(Reg):
     def __init__(self):
@@ -247,6 +250,9 @@ class RegR10(Reg):
     def __str__(self):
         return "%r10d"
 
+    def _repr_single_byte(self):
+        return "%r10b"
+
 
 class RegDX(Reg):
     def __init__(self):
@@ -254,6 +260,9 @@ class RegDX(Reg):
 
     def __str__(self):
         return "%edx"
+
+    def _repr_single_byte(self):
+        return "%dl"
 
 
 class RegCX(Reg):
@@ -270,6 +279,9 @@ class RegR11(Reg):
 
     def __str__(self):
         return "%r11d"
+
+    def _repr_single_byte(self):
+        return "%r11b"
 
 
 ###########################################
@@ -395,10 +407,12 @@ class InstructionJmpCC(Instruction):
 
 
 class InstructionSetCC(Instruction):
-    def __init__(self, condition_code: ConditionCode, label: str) -> None:
-        super().__init__(condition_code, label)
+    def __init__(self, condition_code: ConditionCode, argument: str) -> None:
+        super().__init__(condition_code, argument)
 
     def __str__(self):
+        if isinstance(self.arg_1, Reg):
+            return f"   set{self.command}   {self.arg_1._repr_single_byte()}"
         return f"   set{self.command}   {self.arg_1}"
 
 
