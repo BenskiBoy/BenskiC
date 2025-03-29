@@ -63,6 +63,7 @@ SHORT_CIRCUIT_BINARY_OPERATORS = [
 
 
 TOKEN_PRECEDENCE = {
+    "EQUAL_ASSIGN": 3,
     "OR_LOGICAL": 4,
     "AND_LOGICAL": 5,
     "OR_LOGICAL": 6,
@@ -86,6 +87,7 @@ TOKEN_PRECEDENCE = {
 }
 
 BINARY_TOKENS = [
+    Token("EQUAL_ASSIGN"),
     Token("ADD"),
     Token("HYPHEN"),
     Token("MULTIPLY"),
@@ -127,12 +129,16 @@ class ASTNode:
         return f"{self.type}({self.children})"
 
 
-class Statement(ASTNode):
-    def __init__(self, type, child: ASTNode) -> None:
-        super().__init__(type, [child])
+class ProgramNode(ASTNode):
+    def __init__(self) -> None:
+        super().__init__("PROGRAM", [])
+
+    def __str__(self) -> str:
+        return f"""
+Program("""
 
 
-class ReturnNode(Statement):
+class ReturnNode(ASTNode):
     def __init__(self, child: ASTNode) -> None:
         super().__init__("RETURN", child)
 
@@ -147,6 +153,49 @@ class ExpressionNode(ASTNode):
         super().__init__(type, children, operator)
 
 
+class Statement(ASTNode):
+    def __init__(self, type, child: ReturnNode | ExpressionNode | None) -> None:
+        super().__init__(type, [child])
+
+
+class DeclarationNode(ASTNode):
+    def __init__(self, identifier: str, expression: ExpressionNode | None) -> None:
+        super().__init__("DECLARATION", [expression])
+        self.identifier = identifier
+
+    def __repr__(self) -> str:
+        return f"DECLARATION({self.identifier} {self.children[0]})"
+
+
+class BlockItemNode(ASTNode):
+    def __init__(self, child: Statement | DeclarationNode) -> None:
+        super().__init__(type, [child])
+        self.child = child
+
+    def __repr__(self) -> str:
+        return f"{self.type}({self.child})"
+
+
+class FunctionNode(ASTNode):
+    def __init__(self, return_type: str, name: str, body: list[BlockItemNode]) -> None:
+        super().__init__("FUNCTION", body)
+        self.return_type = return_type
+        self.name = name
+
+    def assemble(self) -> str:
+        return f"""
+        .global {self.name}
+        {self.name}:
+        """
+
+    def __str__(self) -> str:
+        return f"""
+Function(
+    name = {self.name}
+    return_type = {self.return_type}
+    body = """
+
+
 class ConstantNode(ExpressionNode):
     def __init__(self, value: str) -> None:
         super().__init__("CONSTANT", [])
@@ -154,6 +203,15 @@ class ConstantNode(ExpressionNode):
 
     def __repr__(self) -> str:
         return f"""CONSTANT({self.value})"""
+
+
+class VarNode(ExpressionNode):
+    def __init__(self, identifier: str) -> None:
+        super().__init__("VARIABLE", [])
+        self.identifier = identifier
+
+    def __repr__(self) -> str:
+        return f"""VARIABLE({self.identifier})"""
 
 
 class UnaryNode(ExpressionNode):
@@ -177,30 +235,9 @@ class BinaryNode(ExpressionNode):
         self.operator = operator
 
 
-class FunctionNode(ASTNode):
-    def __init__(self, return_type: str, name: str, body: list[ASTNode]) -> None:
-        super().__init__("FUNCTION", body)
-        self.return_type = return_type
-        self.name = name
+class AssignmentNode(ExpressionNode):
+    def __init__(self, lvalue: ExpressionNode, rvalue: ExpressionNode) -> None:
+        super().__init__("ASSIGNMENT", [lvalue, rvalue])
 
-    def assemble(self) -> str:
-        return f"""
-        .global {self.name}
-        {self.name}:
-        """
-
-    def __str__(self) -> str:
-        return f"""
-Function(
-    name = {self.name}
-    return_type = {self.return_type}
-    body = """
-
-
-class ProgramNode(ASTNode):
-    def __init__(self) -> None:
-        super().__init__("PROGRAM", [])
-
-    def __str__(self) -> str:
-        return f"""
-Program("""
+    def __repr__(self) -> str:
+        return f"ASSIGNMENT({self.children[0]}, {self.children[1]})"

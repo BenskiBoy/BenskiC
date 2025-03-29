@@ -29,6 +29,7 @@ TOKENS = [
     (r"&&", "AND_LOGICAL"),
     (r"\|\|", "OR_LOGICAL"),
     (r"==", "EQUAL"),
+    (r"=", "EQUAL_ASSIGN"),
     (r"!=", "NOT_EQUAL"),
     (r"<=", "LESS_OR_EQUAL"),
     (r">=", "GREATER_OR_EQUAL"),

@@ -23,6 +23,8 @@ class Parser:
 
     def parse_function(self, tokens: list[Token]) -> ASTNode:
 
+        block_items = []
+
         tokens, _ = self.expect(Token("INT"), tokens)
         return_type = "INT"
         tokens, token = self.expect(Token("IDENTIFIER"), tokens)
@@ -33,16 +35,54 @@ class Parser:
         tokens, _ = self.expect(Token("VOID"), tokens)
         tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
         tokens, _ = self.expect(Token("OPEN_BRACE"), tokens)
-        tokens, body = self.parse_statement(tokens)
+
+        while tokens[0].type != "CLOSE_BRACE":
+            tokens, next_block_item = self.parse_block_item(tokens)
+            block_items.append(next_block_item)
+
         tokens, _ = self.expect(Token("CLOSE_BRACE"), tokens)
-        return tokens, FunctionNode(return_type, name, [body])
+        return tokens, FunctionNode(return_type, name, [block_items])
+
+    def parse_block_item(self, tokens) -> BlockItemNode:
+        if tokens[0] == Token("INT"):
+            tokens, declaration = self.parse_declaration(tokens)
+            block_item = BlockItemNode(declaration)
+        else:
+            tokens, statement = self.parse_statement(tokens)
+            block_item = BlockItemNode(statement)
+        return tokens, block_item
 
     def parse_statement(self, tokens) -> ASTNode:
-        tokens, _ = self.expect(Token("RETURN"), tokens)
-        tokens, expression = self.parse_expression(tokens)
-        tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+        next_token = tokens[0]
+        if next_token == Token("RETURN"):
+            tokens, _ = self.expect(Token("RETURN"), tokens)
+            tokens, expression = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
 
-        return tokens, ReturnNode(expression)
+            return tokens, ReturnNode(expression)
+        elif next_token == Token("SEMICOLON"):
+            tokens = tokens[1:]
+            return tokens, None
+        else:
+            tokens, expression = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            return tokens, ExpressionNode("EXPRESSION", [expression])
+
+    def parse_declaration(self, tokens) -> DeclarationNode:
+        tokens, _ = self.expect(Token("INT"), tokens)
+        tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
+        identifier = identifier.value
+        if tokens[0] == Token("EQUAL_ASSIGN"):
+            tokens = tokens[1:]
+            tokens, expression = self.parse_expression(tokens)
+            declaration = DeclarationNode(identifier, expression)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+        else:
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+            declaration = DeclarationNode(identifier, None)
+
+        return tokens, declaration
 
     def parse_expression(self, tokens, min_prec: int = 0) -> ASTNode:
         tokens, left = self.parse_factor(tokens)
@@ -52,14 +92,22 @@ class Parser:
             next_token in BINARY_TOKENS
             and TOKEN_PRECEDENCE[next_token.type] >= min_prec
         ):
-            operator = self.parse_binary_operator(
-                next_token, left.operator == UnaryOperatorNode.NEGATE
-            )
-            tokens = tokens[1:]
-            tokens, right = self.parse_expression(
-                tokens, TOKEN_PRECEDENCE[next_token.type] + 1
-            )
-            left = BinaryNode(operator, left, right)
+            if next_token == Token("EQUAL_ASSIGN"):
+
+                tokens = tokens[1:]  # consume the assignment operator
+                tokens, right = self.parse_expression(
+                    tokens, TOKEN_PRECEDENCE[next_token.type]
+                )
+                left = AssignmentNode(left, right)
+            else:
+                operator = self.parse_binary_operator(
+                    next_token, left.operator == UnaryOperatorNode.NEGATE
+                )
+                tokens = tokens[1:]
+                tokens, right = self.parse_expression(
+                    tokens, TOKEN_PRECEDENCE[next_token.type] + 1
+                )
+                left = BinaryNode(operator, left, right)
 
             next_token = tokens[0]
 
@@ -84,6 +132,10 @@ class Parser:
             tokens, expression = self.parse_expression(tokens)
             tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
             return tokens, expression
+
+        elif next_token.type == "IDENTIFIER":
+            tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
+            return tokens, VarNode(identifier.value)
         else:
             raise Exception(f"Syntax Error: Unexpected token {next_token}")
 
@@ -155,7 +207,7 @@ class Parser:
 
         return tokens, ConstantNode(constant_token.value)
 
-    def expect(self, expected: Token, tokens: list[Token]) -> bool:
+    def expect(self, expected: Token, tokens: list[Token]) -> tuple[list[Token], Token]:
         if tokens[0].type == expected.type:
             return tokens[1:], tokens[0]
         raise Exception(f"Syntax Error: Expected {expected}, got {tokens[0]}")
