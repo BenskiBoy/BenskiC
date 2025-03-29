@@ -68,7 +68,8 @@ class Tacky:
                     ir.append(IRJumpIfZeroNode(src_1, false_label))
 
                     src_2 = self.emit_ir(ast.children[1], ir)
-                    ir.append(IRJumpIfZeroNode(src_1, false_label))
+                    ir.append(IRJumpIfZeroNode(src_2, false_label))
+
                     ir.append(IRCopyNode(IRConstantNode(1), dst))
                     ir.append(IRJumpNode(end_label))
                     ir.append(IRLabelNode(false_label))
@@ -85,7 +86,8 @@ class Tacky:
                     ir.append(IRJumpIfNotZeroNode(src_1, true_label))
 
                     src_2 = self.emit_ir(ast.children[1], ir)
-                    ir.append(IRJumpIfNotZeroNode(src_1, true_label))
+                    ir.append(IRJumpIfNotZeroNode(src_2, true_label))
+
                     ir.append(IRCopyNode(IRConstantNode(0), dst))
                     ir.append(IRJumpNode(end_label))
                     ir.append(IRLabelNode(true_label))

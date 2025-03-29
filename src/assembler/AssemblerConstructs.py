@@ -164,6 +164,66 @@ class BinaryOperatorRightShiftArithmetic(BinaryOperator):
 ###########################################
 
 
+class ConditionCode:
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
+
+class ConditionCodeEqual(ConditionCode):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"e"
+
+
+class ConditionCodeNotEqual(ConditionCode):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"ne"
+
+
+class ConditionCodeLess(ConditionCode):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"l"
+
+
+class ConditionCodeLessOrEqual(ConditionCode):
+
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"le"
+
+
+class ConditionCodeGreater(ConditionCode):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"g"
+
+
+class ConditionCodeGreaterOrEqual(ConditionCode):
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        return f"ge"
+
+
+###########################################
+
+
 class Reg:
     def __init__(self):
         pass
@@ -294,6 +354,14 @@ class InstructionBinary(Instruction):
         return f"InstructionBinary {self.binary_operator.__class__.__name__}, {self.arg_1}, {self.arg_2}"
 
 
+class InstructionCmp(Instruction):
+    def __init__(self, src: Operand, dst: Operand) -> None:
+        super().__init__("cmpl", src, dst)
+
+    def __str__(self):
+        return f"   cmpl   {self.arg_1}, {self.arg_2}"
+
+
 class InstructionIdiv(Instruction):
     def __init__(self, src: Operand) -> None:
         super().__init__("idivl", src)
@@ -308,6 +376,38 @@ class InstructionCdq(Instruction):
 
     def __str__(self):
         return "   cdq"
+
+
+class InstructionJmp(Instruction):
+    def __init__(self, label: str) -> None:
+        super().__init__("jmp", label)
+
+    def __str__(self):
+        return f"   jmp    .L{self.arg_1}"
+
+
+class InstructionJmpCC(Instruction):
+    def __init__(self, condition_code: ConditionCode, label: str) -> None:
+        super().__init__(condition_code, label)
+
+    def __str__(self):
+        return f"   j{self.command}   .L{self.arg_1}"
+
+
+class InstructionSetCC(Instruction):
+    def __init__(self, condition_code: ConditionCode, label: str) -> None:
+        super().__init__(condition_code, label)
+
+    def __str__(self):
+        return f"   set{self.command}   {self.arg_1}"
+
+
+class InstructionLabel(Instruction):
+    def __init__(self, label: str) -> None:
+        super().__init__("Label", label)
+
+    def __str__(self):
+        return f".L{self.arg_1}:"
 
 
 class InstructionUnary(Instruction):

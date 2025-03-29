@@ -63,12 +63,12 @@ SHORT_CIRCUIT_BINARY_OPERATORS = [
 
 
 TOKEN_PRECEDENCE = {
-    "OR_LOGICAL": 2,
-    "AND_LOGICAL": 3,
     "OR_LOGICAL": 4,
     "AND_LOGICAL": 5,
-    "OR_BITWISE": 10,
-    "XOR_BITWISE": 10,
+    "OR_LOGICAL": 6,
+    "AND_LOGICAL": 7,
+    "OR_BITWISE": 8,
+    "XOR_BITWISE": 9,
     "AND_BITWISE": 10,
     "NOT_EQUAL": 11,
     "EQUAL": 11,

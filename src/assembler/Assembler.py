@@ -1,4 +1,4 @@
-from tacky.Tacky import *
+from tacky.TackyConstructs import *
 from .AssemblerConstructs import *
 from collections import defaultdict
 
@@ -40,6 +40,8 @@ class AssemblyParser:
             return UnaryOperatorNeg()
         elif op == IRUnaryOperator.COMPLEMENT:
             return UnaryOperatorNot()
+        elif op == IRUnaryOperator.NOT:
+            return UnaryOperatorNot()
         else:
             raise Exception(f"Unknown Unary Op {op}")
 
@@ -49,15 +51,42 @@ class AssemblyParser:
         elif isinstance(node, IRVarNode):
             return OperandPseudo(node.sources[0])
 
-    def parse_unary(self, node: UnaryNode):
-        return [
-            InstructionMov(
-                self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
-            ),
-            InstructionUnary(
-                self._parse_unary_type(node.op), self._parse_operand(node.dst)
-            ),
-        ]
+    def _parse_relational_type(self, op: IRBinaryOperator) -> ConditionCode:
+        if op == IRBinaryOperator.GREATER_THAN:
+            return ConditionCodeGreater()
+        elif op == IRBinaryOperator.GREATER_OR_EQUAL:
+            return ConditionCodeGreaterOrEqual()
+        elif op == IRBinaryOperator.LESS_THAN:
+            return ConditionCodeLess()
+        elif op == IRBinaryOperator.LESS_OR_EQUAL:
+            return ConditionCodeLessOrEqual()
+        elif op == IRBinaryOperator.EQUAL:
+            return ConditionCodeEqual()
+        elif op == IRBinaryOperator.NOT_EQUAL:
+            return ConditionCodeNotEqual()
+        else:
+            raise Exception(f"Unknown Relational Op {op}")
+
+    def parse_unary(self, node: IRUnaryNode):
+        if node.op == IRUnaryOperator.NOT:
+            return [
+                InstructionCmp(
+                    OperandImmediate(0), self._parse_operand(node.sources[0])
+                ),
+                InstructionMov(OperandImmediate(0), self._parse_operand(node.dst)),
+                InstructionSetCC(ConditionCodeEqual(), self._parse_operand(node.dst)),
+            ]
+        elif node.op in [IRUnaryOperator.COMPLEMENT, IRUnaryOperator.NEGATE]:
+            return [
+                InstructionMov(
+                    self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
+                ),
+                InstructionUnary(
+                    self._parse_unary_type(node.op), self._parse_operand(node.dst)
+                ),
+            ]
+        else:
+            raise Exception(f"Unknown Unary Op {node.op}")
 
     def parse_return(self, node: IRReturnNode):
         return [
@@ -68,8 +97,8 @@ class AssemblyParser:
     def parse_constant(self, node: IRConstantNode):
         self.instructions.append(OperandImmediate(node.value))
 
-    def parse_binary(self, node: IRBinaryNode):
-        if node.op == BinaryOperatorNode.ADD:
+    def parse_binary(self, node: IRBinaryOperator):
+        if node.op == IRBinaryOperator.ADD:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -80,7 +109,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.SUBTRACT:
+        elif node.op == IRBinaryOperator.SUBTRACT:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -91,7 +120,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.MULTIPLY:
+        elif node.op == IRBinaryOperator.MULTIPLY:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -102,21 +131,21 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.DIVIDE:
+        elif node.op == IRBinaryOperator.DIVIDE:
             return [
                 InstructionMov(self._parse_operand(node.sources[0]), RegAX()),
                 InstructionCdq(),
                 InstructionIdiv(self._parse_operand(node.sources[1])),
                 InstructionMov(RegAX(), self._parse_operand(node.dst)),
             ]
-        elif node.op == BinaryOperatorNode.REMAINDER:
+        elif node.op == IRBinaryOperator.REMAINDER:
             return [
                 InstructionMov(self._parse_operand(node.sources[0]), RegAX()),
                 InstructionCdq(),
                 InstructionIdiv(self._parse_operand(node.sources[1])),
                 InstructionMov(RegDX(), self._parse_operand(node.dst)),
             ]
-        elif node.op == BinaryOperatorNode.AND_BITWISE:
+        elif node.op == IRBinaryOperator.AND_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -127,7 +156,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.OR_BITWISE:
+        elif node.op == IRBinaryOperator.OR_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -138,7 +167,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.XOR_BITWISE:
+        elif node.op == IRBinaryOperator.XOR_BITWISE:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -149,7 +178,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.LEFT_SHIFT_LOGICAL:
+        elif node.op == IRBinaryOperator.LEFT_SHIFT_LOGICAL:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -160,7 +189,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.RIGHT_SHIFT_LOGICAL:
+        elif node.op == IRBinaryOperator.RIGHT_SHIFT_LOGICAL:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -171,7 +200,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.LEFT_SHIFT_ARITHMETIC:
+        elif node.op == IRBinaryOperator.LEFT_SHIFT_ARITHMETIC:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -182,7 +211,7 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
-        elif node.op == BinaryOperatorNode.RIGHT_SHIFT_ARITHMETIC:
+        elif node.op == IRBinaryOperator.RIGHT_SHIFT_ARITHMETIC:
             return [
                 InstructionMov(
                     self._parse_operand(node.sources[0]), self._parse_operand(node.dst)
@@ -193,6 +222,19 @@ class AssemblyParser:
                     self._parse_operand(node.dst),
                 ),
             ]
+
+        elif node.op in IR_BINARY_RELATIONAL_OPERATORS:
+            return [
+                InstructionCmp(
+                    self._parse_operand(node.sources[1]),
+                    self._parse_operand(node.sources[0]),
+                ),
+                InstructionMov(OperandImmediate(0), self._parse_operand(node.dst)),
+                InstructionSetCC(
+                    self._parse_relational_type(node.op), self._parse_operand(node.dst)
+                ),
+            ]
+
         else:
             raise Exception(f"Unknown Binary Op {node.op}")
 
@@ -205,6 +247,8 @@ class AssemblyParser:
                     isinstance(inst, InstructionMov)
                     or isinstance(inst, InstructionBinary)
                     or isinstance(inst, InstructionIdiv)
+                    or isinstance(inst, InstructionCmp)
+                    or isinstance(inst, InstructionSetCC)
                 ):
                     if isinstance(inst.arg_1, OperandPseudo):
                         instructions[func][i].arg_1 = OperandStack(
@@ -255,6 +299,30 @@ class AssemblyParser:
                         val = inst.arg_1
                         instructions[func][i].arg_1 = RegR10()
                         instructions[func].insert(i, InstructionMov(val, RegR10()))
+                if isinstance(inst, InstructionCmp):
+
+                    if isinstance(inst.arg_1, OperandStack) and isinstance(
+                        inst.arg_2, OperandStack
+                    ):
+                        print("~~~~")
+                        print(f"HAD TO DO CLEAN OF CMP {i}")
+                        print(self.pretty_print())
+                        dest = inst.arg_2
+                        instructions[func][i].arg_2 = RegR10()
+                        instructions[func].insert(i, InstructionMov(dest, RegR10()))
+                        instructions[func][i + 1].arg_2 = RegR10()
+                        instructions[func].insert(i + 2, InstructionMov(RegR10(), dest))
+                        print(self.pretty_print())
+                        print("~~~~")
+                    if isinstance(inst.arg_2, OperandImmediate):
+                        print("~~~~")
+                        print(f"HAD TO DO CLEAN OF CMP {i}")
+                        print(self.pretty_print())
+                        val = inst.arg_2
+                        instructions[func][i].arg_2 = RegR11()
+                        instructions[func].insert(i, InstructionMov(val, RegR11()))
+                        print(self.pretty_print())
+                        print("~~~~")
 
                 if isinstance(inst, InstructionBinary):
                     if (
@@ -327,25 +395,66 @@ class AssemblyParser:
 
     def parse(self, tacky: list[IRNode]):
 
-        current_func_name = ""
+        current_func_identifier = ""
         for i, tack in enumerate(tacky):
+
             if isinstance(tack, IRProgramNode):
                 self.instructions["__PROGRAM__"].append(Program(self.program_name))
 
             elif isinstance(tack, IRFunctionNode):
 
-                self.instructions[tack.name].append(Function(tack.name))
-                current_func_name = tack.name
-                self.instructions["__PROGRAM__"][0].globalls.append(tack.name)
+                self.instructions[tack.identifier].append(Function(tack.identifier))
+                current_func_identifier = tack.identifier
+                self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
 
             elif isinstance(tack, IRReturnNode):
-                self.instructions[current_func_name].extend(self.parse_return(tack))
+                self.instructions[current_func_identifier].extend(
+                    self.parse_return(tack)
+                )
 
             elif isinstance(tack, IRUnaryNode):
-                self.instructions[current_func_name].extend(self.parse_unary(tack))
+                self.instructions[current_func_identifier].extend(
+                    self.parse_unary(tack)
+                )
 
             elif isinstance(tack, IRBinaryNode):
-                self.instructions[current_func_name].extend(self.parse_binary(tack))
+                self.instructions[current_func_identifier].extend(
+                    self.parse_binary(tack)
+                )
+
+            elif isinstance(tack, IRJumpIfZeroNode):
+                self.instructions[current_func_identifier].extend(
+                    [
+                        InstructionCmp(
+                            OperandImmediate(0), self._parse_operand(tack.condition)
+                        ),
+                        InstructionJmpCC(ConditionCodeEqual(), tack.target),
+                    ]
+                )
+            elif isinstance(tack, IRJumpIfNotZeroNode):
+                self.instructions[current_func_identifier].extend(
+                    [
+                        InstructionCmp(
+                            OperandImmediate(0), self._parse_operand(tack.condition)
+                        ),
+                        InstructionJmpCC(ConditionCodeNotEqual(), tack.target),
+                    ]
+                )
+            elif isinstance(tack, IRCopyNode):
+                self.instructions[current_func_identifier].append(
+                    InstructionMov(
+                        self._parse_operand(tack.sources[0]),
+                        self._parse_operand(tack.dst),
+                    )
+                )
+            elif isinstance(tack, IRJumpNode):
+                self.instructions[current_func_identifier].append(
+                    InstructionJmp(tack.target)
+                )
+            elif isinstance(tack, IRLabelNode):
+                self.instructions[current_func_identifier].append(
+                    InstructionLabel(tack.identifier)
+                )
 
             else:
                 raise Exception(f"Unknown IR {tack}")

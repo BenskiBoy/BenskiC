@@ -158,7 +158,16 @@ class IRBinaryOperator(Enum):
     GREATER_OR_EQUAL = "GreaterOrEqual"
 
 
-IR_NON_SHORT_CIRCUIT_OPERATORS = [
+IR_BINARY_RELATIONAL_OPERATORS = [
+    IRBinaryOperator.EQUAL,
+    IRBinaryOperator.NOT_EQUAL,
+    IRBinaryOperator.LESS_THAN,
+    IRBinaryOperator.GREATER_THAN,
+    IRBinaryOperator.LESS_OR_EQUAL,
+    IRBinaryOperator.GREATER_OR_EQUAL,
+]
+
+IR_BINARY_NON_SHORT_CIRCUIT_OPERATORS = [
     IRBinaryOperator.ADD,
     IRBinaryOperator.SUBTRACT,
     IRBinaryOperator.MULTIPLY,
@@ -178,7 +187,7 @@ IR_NON_SHORT_CIRCUIT_OPERATORS = [
     IRBinaryOperator.LESS_OR_EQUAL,
     IRBinaryOperator.GREATER_OR_EQUAL,
 ]
-IR_SHORT_CIRCUIT_OPERATORS = [
+IR_BINARY_SHORT_CIRCUIT_OPERATORS = [
     IRBinaryOperator.AND_LOGICAL,
     IRBinaryOperator.OR_LOGICAL,
 ]
