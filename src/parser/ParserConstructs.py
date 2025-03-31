@@ -140,7 +140,7 @@ Program("""
 
 class ReturnNode(ASTNode):
     def __init__(self, child: ASTNode) -> None:
-        super().__init__("RETURN", child)
+        super().__init__("RETURN", [child])
 
 
 class ExpressionNode(ASTNode):
@@ -173,7 +173,7 @@ class BlockItemNode(ASTNode):
         self.child = child
 
     def __repr__(self) -> str:
-        return f"{self.type}({self.child})"
+        return f"BLOCK_ITEM({self.child})"
 
 
 class FunctionNode(ASTNode):

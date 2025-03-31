@@ -50,8 +50,13 @@ class Tacky:
 
         elif isinstance(ast, FunctionNode):
             ir.append(IRFunctionNode(ast.name, ast.return_type))
-            content = self.emit_ir(ast.children[0], ir)
+            for func in ast.children:
+                for block in func:
+                    if isinstance(block, BlockItemNode):
+                        import pdb
 
+                        pdb.set_trace()
+                        content = self.emit_ir(block.children[0], ir)
             return ir
 
         elif isinstance(ast, BinaryNode):
