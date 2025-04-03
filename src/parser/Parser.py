@@ -11,17 +11,17 @@ class Parser:
         self.ast = None
         self.debug = debug
 
-    def parse(self) -> ASTNode:
+    def parse(self) -> ProgramNode:
         program_node = ProgramNode()
 
         tokens = self.tokens
         while tokens:
             tokens, function = self.parse_function(tokens)
-            program_node.add_child(function)
+            program_node.functions.append(function)
 
         return program_node
 
-    def parse_function(self, tokens: list[Token]) -> ASTNode:
+    def parse_function(self, tokens: list[Token]) -> tuple[list[Token], FunctionNode]:
 
         block_items = []
 
@@ -43,7 +43,7 @@ class Parser:
         tokens, _ = self.expect(Token("CLOSE_BRACE"), tokens)
         return tokens, FunctionNode(return_type, name, [block_items])
 
-    def parse_block_item(self, tokens) -> BlockItemNode:
+    def parse_block_item(self, tokens) -> tuple[list[Token], BlockItemNode]:
         if tokens[0] == Token("INT"):
             tokens, declaration = self.parse_declaration(tokens)
             block_item = BlockItemNode(declaration)
@@ -52,7 +52,7 @@ class Parser:
             block_item = BlockItemNode(statement)
         return tokens, block_item
 
-    def parse_statement(self, tokens) -> ASTNode:
+    def parse_statement(self, tokens) -> tuple[list[Token], Statement]:
         next_token = tokens[0]
         if next_token == Token("RETURN"):
             tokens, _ = self.expect(Token("RETURN"), tokens)
@@ -67,9 +67,9 @@ class Parser:
             tokens, expression = self.parse_expression(tokens)
             tokens, _ = self.expect(Token("SEMICOLON"), tokens)
 
-            return tokens, ExpressionNode("EXPRESSION", [expression])
+            return tokens, expression
 
-    def parse_declaration(self, tokens) -> DeclarationNode:
+    def parse_declaration(self, tokens) -> tuple[list[Token], DeclarationNode]:
         tokens, _ = self.expect(Token("INT"), tokens)
         tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
         identifier = identifier.value
@@ -84,7 +84,9 @@ class Parser:
 
         return tokens, declaration
 
-    def parse_expression(self, tokens, min_prec: int = 0) -> ASTNode:
+    def parse_expression(
+        self, tokens, min_prec: int = 0
+    ) -> tuple[list[Token], ExpressionNode]:
         tokens, left = self.parse_factor(tokens)
         next_token = tokens[0]
 
@@ -100,9 +102,19 @@ class Parser:
                 )
                 left = AssignmentNode(left, right)
             else:
-                operator = self.parse_binary_operator(
-                    next_token, left.operator == UnaryOperatorNode.NEGATE
-                )
+                if isinstance(left, UnaryNode):
+                    operator = self.parse_binary_operator(
+                        next_token, left.operator == UnaryOperatorNode.NEGATE
+                    )
+                elif isinstance(left, BinaryNode):
+                    operator = self.parse_binary_operator(next_token, False)
+                elif isinstance(left, VarNode):
+                    operator = self.parse_binary_operator(next_token, False)
+                elif isinstance(left, ConstantNode):
+                    operator = self.parse_binary_operator(next_token, False)
+
+                else:
+                    raise Exception(f"Unexpected left operand type {type(left)}")
                 tokens = tokens[1:]
                 tokens, right = self.parse_expression(
                     tokens, TOKEN_PRECEDENCE[next_token.type] + 1
@@ -113,7 +125,9 @@ class Parser:
 
         return tokens, left
 
-    def parse_factor(self, tokens) -> ASTNode:
+    def parse_factor(
+        self, tokens
+    ) -> tuple[list[Token], UnaryNode | ExpressionNode | VarNode]:
         next_token = tokens[0]
         if next_token.type == "CONSTANT":
             return self.parse_constant(tokens)
@@ -139,7 +153,7 @@ class Parser:
         else:
             raise Exception(f"Syntax Error: Unexpected token {next_token}")
 
-    def parse_unary(self, tokens) -> tuple[list[ASTNode], str]:
+    def parse_unary(self, tokens) -> tuple[list[UnaryNode], str]:
         unary_operator = None
         if tokens[0].value == "~":
             unary_operator = UnaryOperatorNode.COMPLEMENT
@@ -202,7 +216,7 @@ class Parser:
         else:
             raise Exception(f"Unrecognised Binary Operator {token.value}")
 
-    def parse_constant(self, tokens) -> ASTNode:
+    def parse_constant(self, tokens) -> tuple[list[Token], ConstantNode]:
         tokens, constant_token = self.expect(Token("CONSTANT"), tokens)
 
         return tokens, ConstantNode(constant_token.value)
@@ -214,5 +228,9 @@ class Parser:
 
 
 def pretty_print(ast, level: int = 0, prev_content: str = "  ") -> None:
-    print(" " * level + str(ast))
-    print(" " * level + str(ast.children))
+    print(ast)
+    for function in ast.functions:
+        print(function.__str__())
+        for block in function.block_items:
+            for item in block:
+                print(repr(item))

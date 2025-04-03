@@ -69,10 +69,10 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print()
+            semantic.pretty_print(ast)
 
         tacky = Tacky(ast, debug)
-        ir = tacky.emit_ir(ast)
+        ir = tacky.parse(ast)
         if debug:
             tacky.pretty_print(ir)
 
@@ -93,7 +93,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             semantic.pretty_print()
 
         tacky = Tacky(ast, debug)
-        ir = tacky.emit_ir(ast)
+        ir = tacky.parse(ast)
         if debug:
             tacky.pretty_print(ir)
 
@@ -119,10 +119,10 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print()
+            semantic.pretty_print(ast)
 
         tacky = Tacky(ast, debug)
-        ir = tacky.emit_ir(ast)
+        ir = tacky.parse(ast)
         if debug:
             tacky.pretty_print(ir)
 
@@ -155,7 +155,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             semantic.pretty_print()
 
         tacky = Tacky(ast, debug)
-        ir = tacky.emit_ir(ast)
+        ir = tacky.parse(ast)
         if debug:
             tacky.pretty_print(ir)
 

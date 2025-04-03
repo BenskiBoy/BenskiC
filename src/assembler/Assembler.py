@@ -482,6 +482,9 @@ class AssemblyParser:
                     InstructionLabel(tack.identifier)
                 )
 
+            elif isinstance(tack, IRVarNode):
+                pass
+
             else:
                 raise Exception(f"Unknown IR {tack}")
 

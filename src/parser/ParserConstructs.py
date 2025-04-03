@@ -109,84 +109,77 @@ BINARY_TOKENS = [
 ]
 
 
-class ASTNode:
-    def __init__(
-        self,
-        type: str,
-        children: list[Self] = [],
-        operator: UnaryOperatorNode | BinaryOperatorNode = None,
-    ) -> None:
-        self.type = type
-        self.children = children
-        self.operator = operator
-
-    def add_child(self, child: Self) -> None:
-        self.children.append(child)
-
-    def __repr__(self) -> str:
-        if self.operator:
-            return f"{self.type} {self.operator}, ({self.children})"
-        return f"{self.type}({self.children})"
-
-
-class ProgramNode(ASTNode):
+class ProgramNode:
     def __init__(self) -> None:
-        super().__init__("PROGRAM", [])
+        self.functions = []
+
+    def repr(self) -> str:
+        return f"PROGRAM({self.functions})"
 
     def __str__(self) -> str:
         return f"""
 Program("""
 
 
-class ReturnNode(ASTNode):
-    def __init__(self, child: ASTNode) -> None:
-        super().__init__("RETURN", [child])
-
-
-class ExpressionNode(ASTNode):
+class ExpressionNode:
     def __init__(
         self,
-        type,
-        children: list[ASTNode],
-        operator: UnaryOperatorNode | BinaryOperatorNode = None,
-    ) -> None:
-        super().__init__(type, children, operator)
-
-
-class Statement(ASTNode):
-    def __init__(self, type, child: ReturnNode | ExpressionNode | None) -> None:
-        super().__init__(type, [child])
-
-
-class DeclarationNode(ASTNode):
-    def __init__(self, identifier: str, expression: ExpressionNode | None) -> None:
-        super().__init__("DECLARATION", [expression])
-        self.identifier = identifier
+    ):
+        pass
 
     def __repr__(self) -> str:
-        return f"DECLARATION({self.identifier} {self.children[0]})"
+        return f"EXPRESSION({self.operator})"
 
 
-class BlockItemNode(ASTNode):
+class ReturnNode:
+    def __init__(self, exp: ExpressionNode) -> None:
+        self.exp = exp
+
+    def __repr__(self):
+        return f"RETURN({self.exp})"
+
+
+class Statement:
+    def __init__(self, child: ReturnNode | ExpressionNode | None) -> None:
+        self.child = child
+
+    def __repr__(self):
+        return f"STATEMENT({self.child})"
+
+
+class DeclarationNode:
+    def __init__(self, identifier: str, exp: ExpressionNode | None) -> None:
+        self.identifier = identifier
+        self.exp = exp
+
+    def __repr__(self) -> str:
+        return f"DECLARATION({self.identifier} {self.exp})"
+
+
+class BlockItemNode:
     def __init__(self, child: Statement | DeclarationNode) -> None:
-        super().__init__(type, [child])
         self.child = child
 
     def __repr__(self) -> str:
         return f"BLOCK_ITEM({self.child})"
 
 
-class FunctionNode(ASTNode):
-    def __init__(self, return_type: str, name: str, body: list[BlockItemNode]) -> None:
-        super().__init__("FUNCTION", body)
+class FunctionNode:
+    def __init__(
+        self, return_type: str, name: str, block_items: list[BlockItemNode]
+    ) -> None:
         self.return_type = return_type
         self.name = name
+        self.block_items = block_items
 
     def assemble(self) -> str:
         return f"""
         .global {self.name}
         {self.name}:
         """
+
+    def __repr__(self):
+        return f"FUNCTION({self.name} {self.return_type} {self.block_items})"
 
     def __str__(self) -> str:
         return f"""
@@ -198,7 +191,6 @@ Function(
 
 class ConstantNode(ExpressionNode):
     def __init__(self, value: str) -> None:
-        super().__init__("CONSTANT", [])
         self.value = value
 
     def __repr__(self) -> str:
@@ -207,7 +199,6 @@ class ConstantNode(ExpressionNode):
 
 class VarNode(ExpressionNode):
     def __init__(self, identifier: str) -> None:
-        super().__init__("VARIABLE", [])
         self.identifier = identifier
 
     def __repr__(self) -> str:
@@ -217,27 +208,35 @@ class VarNode(ExpressionNode):
 class UnaryNode(ExpressionNode):
     def __init__(
         self,
-        expression: ExpressionNode,
+        exp: ExpressionNode,
         operator: UnaryOperatorNode,
     ) -> None:
-        super().__init__("UNARY", [expression], operator)
+        self.exp = exp
         self.operator = operator
+
+    def __repr__(self):
+        return f"UNARY({self.operator} {self.exp})"
 
 
 class BinaryNode(ExpressionNode):
     def __init__(
         self,
         operator: BinaryOperatorNode,
-        expression_1: ExpressionNode,
-        expression_2: ExpressionNode,
+        exp_1: ExpressionNode,
+        exp_2: ExpressionNode,
     ) -> None:
-        super().__init__("BinaryNode", [expression_1, expression_2], operator)
         self.operator = operator
+        self.exp_1 = exp_1
+        self.exp_2 = exp_2
+
+    def __repr__(self):
+        return f"BINARY({self.operator} {self.exp_1} {self.exp_2})"
 
 
 class AssignmentNode(ExpressionNode):
     def __init__(self, lvalue: ExpressionNode, rvalue: ExpressionNode) -> None:
-        super().__init__("ASSIGNMENT", [lvalue, rvalue])
+        self.lvalue = lvalue
+        self.rvalue = rvalue
 
     def __repr__(self) -> str:
-        return f"ASSIGNMENT({self.children[0]}, {self.children[1]})"
+        return f"ASSIGNMENT({self.lvalue}, {self.rvalue})"

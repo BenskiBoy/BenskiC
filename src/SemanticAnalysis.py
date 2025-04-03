@@ -21,24 +21,24 @@ class SemanticAnalysis:
         else:
             raise Exception(f"Temporary identifier '{identifier}' not found.")
 
-    def parse(self, ast: ASTNode) -> ASTNode:
+    def parse(self, ast: ProgramNode) -> ProgramNode:
 
         if isinstance(ast, ProgramNode):
-            for i, child in enumerate(ast.children):
-                if isinstance(child, FunctionNode):
-                    ast.children[0] = self.parse(child)
+            for i, function in enumerate(ast.functions):
+                if isinstance(function, FunctionNode):
+                    ast.functions[0] = self.parse(function)
 
         elif isinstance(ast, FunctionNode):
-            for i, child in enumerate(ast.children):
+            for i, child in enumerate(ast.block_items):
                 for j, block_item in enumerate(child):
                     res = self.parse_block_item(block_item)
-                    ast.children[i][j] = res
+                    ast.block_items[i][j] = res
 
         return ast
 
     def parse_block_item(self, block: BlockItemNode) -> BlockItemNode:
 
-        content = block.children[0]
+        content = block.child
         if isinstance(content, DeclarationNode):
             return BlockItemNode(self.resolve_declaration(content))
         elif isinstance(content, ReturnNode) or isinstance(
@@ -57,8 +57,8 @@ class SemanticAnalysis:
             raise Exception(f"Variable '{declaration.identifier}' already declared.")
 
         unique_name = self.make_temporary_identifier(declaration.identifier)
-        if declaration.children[0] is not None:
-            expression = self.resolve_expression(declaration.children[0])
+        if declaration.exp is not None:
+            expression = self.resolve_expression(declaration.exp)
         else:
             expression = None
 
@@ -68,10 +68,10 @@ class SemanticAnalysis:
         )
 
     def resolve_statement(self, statement: Statement) -> Statement:
-        if isinstance(statement.children[0], ReturnNode):
-            return ReturnNode(self.resolve_expression(statement.children))
-        elif isinstance(statement.children[0], ExpressionNode):
-            expression = self.resolve_expression(statement.children[0])
+        if isinstance(statement, ReturnNode):
+            return ReturnNode(self.resolve_expression(statement.exp))
+        elif isinstance(statement.child, ExpressionNode):
+            expression = self.resolve_expression(statement.child)
             return ExpressionNode("EXPRESSION", expression)
         else:
             raise Exception("Unknown statement type.")
@@ -79,36 +79,31 @@ class SemanticAnalysis:
     def resolve_expression(self, expression: ExpressionNode) -> ExpressionNode:
 
         print(f"resolving expression? {repr(expression)}")
-        if len(expression.children) == 0:
-            if isinstance(expression, VarNode):
-                if expression.identifier in self.variable_map:
-                    return VarNode(self.get_temporary_identifier(expression.identifier))
-                else:
-                    raise Exception(f"Variable '{expression.identifier}' not declared.")
+        if isinstance(expression, VarNode):
+            if expression.identifier in self.variable_map:
+                return VarNode(self.get_temporary_identifier(expression.identifier))
             else:
-                return expression
+                raise Exception(f"Variable '{expression.identifier}' not declared.")
         elif isinstance(
-            expression.children[0],
+            expression,
             AssignmentNode,
         ):
-            if not isinstance(expression.children[0].children[0], VarNode):
+            if not isinstance(expression.lvalue, VarNode):
                 raise Exception("Left side of assignment must be a variable.")
-            if isinstance(expression.children[0].children[1], AssignmentNode):
-                raise Exception("Assignment cannot be nested.")  # i.e. a = b = c
             return AssignmentNode(
-                self.resolve_expression(expression.children[0].children[0]),
-                self.resolve_expression(expression.children[0].children[1]),
+                self.resolve_expression(expression.lvalue),
+                self.resolve_expression(expression.rvalue),
             )
         elif isinstance(expression, BinaryNode):
-            left = self.resolve_expression(expression.children[0])
-            right = self.resolve_expression(expression.children[1])
+            left = self.resolve_expression(expression.exp_1)
+            right = self.resolve_expression(expression.exp_2)
             return BinaryNode(
                 expression.operator,
                 left,
                 right,
             )
         elif isinstance(expression, UnaryNode):
-            child = self.resolve_expression(expression.children[0])
+            child = self.resolve_expression(expression.exp)
             return UnaryNode(child, expression.operator)
 
         else:
@@ -116,4 +111,9 @@ class SemanticAnalysis:
 
     def pretty_print(self, ast):
         print(self.variable_map)
-        print(repr(ast))
+
+        for function in ast.functions:
+            print(function.__str__())
+            for block in function.block_items:
+                for item in block:
+                    print(repr(item))
