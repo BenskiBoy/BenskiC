@@ -33,6 +33,17 @@ TOKENS = [
     (r"!=", "NOT_EQUAL"),
     (r"<=", "LESS_OR_EQUAL"),
     (r">=", "GREATER_OR_EQUAL"),
+    (r"\+\+", "INCREMENT"),
+    (r"\+\=", "ADD_ASSIGN"),
+    (r"-\=", "SUB_ASSIGN"),
+    (r"\*=", "MULT_ASSIGN"),
+    (r"\/=", "DIV_ASSIGN"),
+    (r"\%=", "REM_ASSIGN"),
+    (r"&=", "AND_ASSIGN"),
+    (r"\|=", "OR_ASSIGN"),
+    (r"\^=", "XOR_ASSIGN"),
+    (r"<<=", "LEFT_SHIFT_ASSIGN"),
+    (r">>=", "RIGHT_SHIFT_ASSIGN"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]

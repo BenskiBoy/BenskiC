@@ -11,6 +11,22 @@ class UnaryOperatorNode(Enum):
     COMPLEMENT = "Complement"
     NEGATE = "Negate"
     NOT = "Not"
+    INCREMENT = "Increment"
+    DECREMENT = "Decrement"
+
+
+class EqualAssignOperatorNode(Enum):
+    EQUAL_ASSIGN = "EqualAssign"
+    ADD_ASSIGN = "AddAssign"
+    SUB_ASSIGN = "SubAssign"
+    MULT_ASSIGN = "MultAssign"
+    DIV_ASSIGN = "DivAssign"
+    REM_ASSIGN = "RemAssign"
+    AND_ASSIGN = "AndAssign"
+    OR_ASSIGN = "OrAssign"
+    XOR_ASSIGN = "XorAssign"
+    LEFT_SHIFT_ASSIGN = "LeftShiftAssign"
+    RIGHT_SHIFT_ASSIGN = "RightShiftAssign"
 
 
 class BinaryOperatorNode(Enum):
@@ -34,6 +50,16 @@ class BinaryOperatorNode(Enum):
     GREATER_THAN = "GreaterThan"
     LESS_OR_EQUAL = "LessOrEqual"
     GREATER_OR_EQUAL = "GreaterOrEqual"
+    ADD_ASSIGN = "AddAssign"
+    SUB_ASSIGN = "SubAssign"
+    MULT_ASSIGN = "MultAssign"
+    DIV_ASSIGN = "DivAssign"
+    REM_ASSIGN = "RemAssign"
+    AND_ASSIGN = "AndAssign"
+    OR_ASSIGN = "OrAssign"
+    XOR_ASSIGN = "XorAssign"
+    LEFT_SHIFT_ASSIGN = "LeftShiftAssign"
+    RIGHT_SHIFT_ASSIGN = "RightShiftAssign"
 
 
 NON_SHORT_CIRCUIT_BINARY_OPERATORS = [
@@ -64,6 +90,16 @@ SHORT_CIRCUIT_BINARY_OPERATORS = [
 
 TOKEN_PRECEDENCE = {
     "EQUAL_ASSIGN": 3,
+    "ADD_ASSIGN": 3,
+    "SUB_ASSIGN": 3,
+    "MULT_ASSIGN": 3,
+    "DIV_ASSIGN": 3,
+    "REM_ASSIGN": 3,
+    "AND_ASSIGN": 3,
+    "OR_ASSIGN": 3,
+    "XOR_ASSIGN": 3,
+    "LEFT_SHIFT_ASSIGN": 3,
+    "RIGHT_SHIFT_ASSIGN": 3,
     "OR_LOGICAL": 4,
     "AND_LOGICAL": 5,
     "OR_LOGICAL": 6,
@@ -84,7 +120,18 @@ TOKEN_PRECEDENCE = {
     "MULTIPLY": 15,
     "DIVIDE": 15,
     "REMAINDER": 15,
+    "NOT": 17,
+    "INCREMENT": 16,
+    "DOUBLE_HYPHEN": 16,
 }
+
+UNARY_TOKENS = [
+    Token("TILDA"),
+    Token("HYPHEN"),
+    Token("NOT"),
+    Token("INCREMENT"),
+    Token("DOUBLE_HYPHEN"),
+]
 
 BINARY_TOKENS = [
     Token("EQUAL_ASSIGN"),
@@ -106,6 +153,16 @@ BINARY_TOKENS = [
     Token("GREATER_OR_EQUAL"),
     Token("LESS_THAN"),
     Token("GREATER_THAN"),
+    Token("LEFT_SHIFT_ASSIGN"),
+    Token("RIGHT_SHIFT_ASSIGN"),
+    Token("ADD_ASSIGN"),
+    Token("SUB_ASSIGN"),
+    Token("MULT_ASSIGN"),
+    Token("DIV_ASSIGN"),
+    Token("REM_ASSIGN"),
+    Token("AND_ASSIGN"),
+    Token("OR_ASSIGN"),
+    Token("XOR_ASSIGN"),
 ]
 
 
@@ -210,12 +267,14 @@ class UnaryNode(ExpressionNode):
         self,
         exp: ExpressionNode,
         operator: UnaryOperatorNode,
+        postfix: bool = False,
     ) -> None:
         self.exp = exp
         self.operator = operator
+        self.postfix = postfix
 
     def __repr__(self):
-        return f"UNARY({self.operator} {self.exp})"
+        return f"UNARY({self.operator} {self.exp} {"POSTFIX" if self.postfix else "PREFIX"})"
 
 
 class BinaryNode(ExpressionNode):
@@ -234,9 +293,15 @@ class BinaryNode(ExpressionNode):
 
 
 class AssignmentNode(ExpressionNode):
-    def __init__(self, lvalue: ExpressionNode, rvalue: ExpressionNode) -> None:
+    def __init__(
+        self,
+        lvalue: ExpressionNode,
+        rvalue: ExpressionNode,
+        type: EqualAssignOperatorNode = EqualAssignOperatorNode.EQUAL_ASSIGN,
+    ) -> None:
         self.lvalue = lvalue
         self.rvalue = rvalue
+        self.type = type
 
     def __repr__(self) -> str:
-        return f"ASSIGNMENT({self.lvalue}, {self.rvalue})"
+        return f"ASSIGNMENT({self.type} {self.lvalue}, {self.rvalue})"

@@ -50,10 +50,44 @@ class Tacky:
             return IRConstantNode(ast.value)
 
         elif isinstance(ast, UnaryNode):
-            src = self.emit_ir(ast.exp)
-            dst = IRVarNode(self.make_temporary_variable())
-            tacky_op = IRUnaryOperator[ast.operator.name]
-            self.ir.append(IRUnaryNode(tacky_op, src, dst))
+
+            if ast.operator in [
+                UnaryOperatorNode.INCREMENT,
+                UnaryOperatorNode.DECREMENT,
+            ]:
+                binary_operator_lookup = {
+                    UnaryOperatorNode.INCREMENT: IRBinaryOperator.ADD,
+                    UnaryOperatorNode.DECREMENT: IRBinaryOperator.SUBTRACT,
+                }
+                if ast.postfix:
+                    src = self.emit_ir(ast.exp)
+                    dst = IRVarNode(self.make_temporary_variable())
+                    self.ir.append(IRCopyNode(src, dst))
+                    tacky_op = IRBinaryNode(
+                        binary_operator_lookup[ast.operator],
+                        src,
+                        IRConstantNode(1),
+                        src,
+                    )
+                    self.ir.append(tacky_op)
+
+                else:
+                    src = self.emit_ir(ast.exp)
+                    dst = src
+                    tacky_op = IRBinaryNode(
+                        binary_operator_lookup[ast.operator],
+                        src,
+                        IRConstantNode(1),
+                        src,
+                    )
+                    self.ir.append(tacky_op)
+
+                return dst
+            else:
+                src = self.emit_ir(ast.exp)
+                dst = IRVarNode(self.make_temporary_variable())
+                tacky_op = IRUnaryOperator[ast.operator.name]
+                self.ir.append(IRUnaryNode(tacky_op, src, dst))
 
             return dst
 
@@ -114,6 +148,16 @@ class Tacky:
             return IRVarNode(ast.identifier)
 
         elif isinstance(ast, AssignmentNode):
+            if ast.type in ASSIGN_EQUAL_OPERATORS_LOOKUP.keys():
+
+                src = self.emit_ir(ast.rvalue)
+                dst = self.emit_ir(ast.lvalue)
+                temp = IRVarNode(self.make_temporary_variable())
+                tacky_op = ASSIGN_EQUAL_OPERATORS_LOOKUP[ast.type]
+                self.ir.append(IRBinaryNode(tacky_op, dst, src, temp))
+                self.ir.append(IRCopyNode(temp, dst))
+                return dst
+
             result = self.emit_ir(ast.rvalue)
             self.ir.append(IRCopyNode(result, IRVarNode(ast.lvalue.identifier)))
             return IRVarNode(ast.lvalue.identifier)

@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Self
+from parser.Parser import *
 
 
 class IRNode:
@@ -116,6 +117,8 @@ class IRUnaryOperator(Enum):
     COMPLEMENT = "Complement"
     NEGATE = "Negate"
     NOT = "Not"
+    INCREMENT = "Increment"
+    DECREMENT = "Decrement"
 
 
 class IRUnaryNode(IRNode):
@@ -191,6 +194,19 @@ IR_BINARY_SHORT_CIRCUIT_OPERATORS = [
     IRBinaryOperator.AND_LOGICAL,
     IRBinaryOperator.OR_LOGICAL,
 ]
+
+ASSIGN_EQUAL_OPERATORS_LOOKUP = {
+    EqualAssignOperatorNode.ADD_ASSIGN: IRBinaryOperator.ADD,
+    EqualAssignOperatorNode.SUB_ASSIGN: IRBinaryOperator.SUBTRACT,
+    EqualAssignOperatorNode.MULT_ASSIGN: IRBinaryOperator.MULTIPLY,
+    EqualAssignOperatorNode.DIV_ASSIGN: IRBinaryOperator.DIVIDE,
+    EqualAssignOperatorNode.REM_ASSIGN: IRBinaryOperator.REMAINDER,
+    EqualAssignOperatorNode.AND_ASSIGN: IRBinaryOperator.AND_BITWISE,
+    EqualAssignOperatorNode.OR_ASSIGN: IRBinaryOperator.OR_BITWISE,
+    EqualAssignOperatorNode.XOR_ASSIGN: IRBinaryOperator.XOR_BITWISE,
+    EqualAssignOperatorNode.LEFT_SHIFT_ASSIGN: IRBinaryOperator.LEFT_SHIFT_LOGICAL,
+    EqualAssignOperatorNode.RIGHT_SHIFT_ASSIGN: IRBinaryOperator.RIGHT_SHIFT_LOGICAL,
+}
 
 
 class IRBinaryNode(IRNode):

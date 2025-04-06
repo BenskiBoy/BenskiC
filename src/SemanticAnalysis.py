@@ -78,7 +78,7 @@ class SemanticAnalysis:
 
     def resolve_expression(self, expression: ExpressionNode) -> ExpressionNode:
 
-        print(f"resolving expression? {repr(expression)}")
+        print(f"resolving expression {repr(expression)}")
         if isinstance(expression, VarNode):
             if expression.identifier in self.variable_map:
                 return VarNode(self.get_temporary_identifier(expression.identifier))
@@ -93,6 +93,7 @@ class SemanticAnalysis:
             return AssignmentNode(
                 self.resolve_expression(expression.lvalue),
                 self.resolve_expression(expression.rvalue),
+                expression.type,
             )
         elif isinstance(expression, BinaryNode):
             left = self.resolve_expression(expression.exp_1)
@@ -104,7 +105,33 @@ class SemanticAnalysis:
             )
         elif isinstance(expression, UnaryNode):
             child = self.resolve_expression(expression.exp)
-            return UnaryNode(child, expression.operator)
+
+            if isinstance(child, UnaryNode) and isinstance(expression, UnaryNode):
+                if expression.operator in [
+                    UnaryOperatorNode.INCREMENT,
+                    UnaryOperatorNode.DECREMENT,
+                ] and child.operator in [
+                    UnaryOperatorNode.INCREMENT,
+                    UnaryOperatorNode.DECREMENT,
+                ]:
+                    raise Exception(
+                        "Increment/Decrement operator cannot be used on itself."
+                    )
+            if isinstance(child, AssignmentNode) and isinstance(
+                expression.operator, UnaryOperatorNode
+            ):
+                raise Exception("Unary operator cannot be used on assignment.")
+            if isinstance(child, (ConstantNode, BinaryNode)) and isinstance(
+                expression, UnaryNode
+            ):
+                if expression.operator in [
+                    UnaryOperatorNode.INCREMENT,
+                    UnaryOperatorNode.DECREMENT,
+                ]:
+                    raise Exception(
+                        "Unary operator cannot be used on constant or binary node."
+                    )
+            return UnaryNode(child, expression.operator, expression.postfix)
 
         else:
             return expression

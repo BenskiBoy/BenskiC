@@ -94,13 +94,17 @@ class Parser:
             next_token in BINARY_TOKENS
             and TOKEN_PRECEDENCE[next_token.type] >= min_prec
         ):
-            if next_token == Token("EQUAL_ASSIGN"):
-
+            if next_token in [  # handle assignment operators
+                Token(equal_node.name) for equal_node in EqualAssignOperatorNode
+            ]:
                 tokens = tokens[1:]  # consume the assignment operator
                 tokens, right = self.parse_expression(
                     tokens, TOKEN_PRECEDENCE[next_token.type]
                 )
-                left = AssignmentNode(left, right)
+                left = AssignmentNode(
+                    left, right, EqualAssignOperatorNode[next_token.type]
+                )
+
             else:
                 if isinstance(left, UnaryNode):
                     operator = self.parse_binary_operator(
@@ -131,13 +135,21 @@ class Parser:
         next_token = tokens[0]
         if next_token.type == "CONSTANT":
             return self.parse_constant(tokens)
-        elif (
-            next_token.type == "TILDA"
-            or next_token.type == "HYPHEN"
-            or next_token.type == "NOT"
-        ):
+        elif next_token in UNARY_TOKENS:
             tokens, operator = self.parse_unary(tokens)
             tokens, inner_expression = self.parse_factor(tokens)
+
+            # Check for postfix operators after parsing the inner expression
+            if tokens and tokens[0] in [Token("INCREMENT"), Token("DOUBLE_HYPHEN")]:
+                next_token = tokens[0]
+                tokens = tokens[1:]  # consume the token
+                if next_token.type == "INCREMENT":
+                    postfix_operator = UnaryOperatorNode.INCREMENT
+                else:
+                    postfix_operator = UnaryOperatorNode.DECREMENT
+                inner_expression = UnaryNode(
+                    inner_expression, postfix_operator, True
+                )  # Apply postfix first
 
             return tokens, UnaryNode(inner_expression, operator)
 
@@ -149,6 +161,16 @@ class Parser:
 
         elif next_token.type == "IDENTIFIER":
             tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
+            # Check for postfix operators immediately after identifier
+            if tokens and tokens[0] in [Token("INCREMENT"), Token("DOUBLE_HYPHEN")]:
+                next_token = tokens[0]
+                tokens = tokens[1:]  # consume the token
+                if next_token.type == "INCREMENT":
+                    operator = UnaryOperatorNode.INCREMENT
+                else:
+                    operator = UnaryOperatorNode.DECREMENT
+                return tokens, UnaryNode(VarNode(identifier.value), operator, True)
+
             return tokens, VarNode(identifier.value)
         else:
             raise Exception(f"Syntax Error: Unexpected token {next_token}")
@@ -161,6 +183,10 @@ class Parser:
             unary_operator = UnaryOperatorNode.NEGATE
         elif tokens[0].value == "!":
             unary_operator = UnaryOperatorNode.NOT
+        elif tokens[0].value == "++":
+            unary_operator = UnaryOperatorNode.INCREMENT
+        elif tokens[0].value == "--":
+            unary_operator = UnaryOperatorNode.DECREMENT
         else:
             raise Exception(f"Unrecognised Unary Operator {tokens[0].value}")
 
@@ -213,6 +239,26 @@ class Parser:
             return BinaryOperatorNode.LESS_THAN
         elif token == Token("GREATER_THAN"):
             return BinaryOperatorNode.GREATER_THAN
+        elif token == Token("LEFT_SHIFT_ASSIGN"):
+            return BinaryOperatorNode.LEFT_SHIFT_ASSIGN
+        elif token == Token("RIGHT_SHIFT_ASSIGN"):
+            return BinaryOperatorNode.RIGHT_SHIFT_ASSIGN
+        elif token == Token("ADD_ASSIGN"):
+            return BinaryOperatorNode.ADD_ASSIGN
+        elif token == Token("SUB_ASSIGN"):
+            return BinaryOperatorNode.SUB_ASSIGN
+        elif token == Token("MULT_ASSIGN"):
+            return BinaryOperatorNode.MULT_ASSIGN
+        elif token == Token("DIV_ASSIGN"):
+            return BinaryOperatorNode.DIV_ASSIGN
+        elif token == Token("AND_ASSIGN"):
+            return BinaryOperatorNode.AND_ASSIGN
+        elif token == Token("OR_ASSIGN"):
+            return BinaryOperatorNode.OR_ASSIGN
+        elif token == Token("XOR_ASSIGN"):
+            return BinaryOperatorNode.XOR_ASSIGN
+        elif token == Token("REM_ASSIGN"):
+            return BinaryOperatorNode.REM_ASSIGN
         else:
             raise Exception(f"Unrecognised Binary Operator {token.value}")
 
