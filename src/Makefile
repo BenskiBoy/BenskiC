@@ -1,7 +1,7 @@
 .PHONY: full_run
 
 test:
-	../tester/test_compiler /home/benth/programming/c_compiler/src/main.py --chapter 5 --extra-credit
+	../tester/test_compiler /home/benth/programming/c_compiler/src/main.py --chapter 6 --stage validate
 
 compile:
 	gcc return_2.s -o return_2

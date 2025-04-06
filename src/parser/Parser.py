@@ -60,6 +60,30 @@ class Parser:
             tokens, _ = self.expect(Token("SEMICOLON"), tokens)
 
             return tokens, ReturnNode(expression)
+
+        elif next_token == Token("IF"):
+            tokens, _ = self.expect(Token("IF"), tokens)
+            tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+            tokens, condition = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+
+            tokens, then_block = self.parse_statement(tokens)
+
+            if tokens[0] == Token("ELSE"):
+                tokens = tokens[1:]
+                if tokens[1] == Token("IF"):
+                    tokens, _ = self.expect(Token("IF"), tokens)
+                    tokens, condition = self.parse_expression(tokens)
+                    tokens, then = self.parse_statement(tokens)
+                    else_block = IfNode(condition, then)
+
+                else:
+                    tokens, else_block = self.parse_statement(tokens)
+            else:
+                else_block = None
+
+            return tokens, IfNode(condition, then_block, else_block)
+
         elif next_token == Token("SEMICOLON"):
             tokens = tokens[1:]
             return tokens, None
@@ -84,6 +108,12 @@ class Parser:
 
         return tokens, declaration
 
+    def parse_conditional_middle(self, tokens) -> tuple[list[Token], ExpressionNode]:
+        tokens, _ = self.expect(Token("QUESTION_MARK"), tokens)
+        tokens, middle = self.parse_expression(tokens)
+        tokens, _ = self.expect(Token("COLON"), tokens)
+        return tokens, middle
+
     def parse_expression(
         self, tokens, min_prec: int = 0
     ) -> tuple[list[Token], ExpressionNode]:
@@ -104,6 +134,13 @@ class Parser:
                 left = AssignmentNode(
                     left, right, EqualAssignOperatorNode[next_token.type]
                 )
+
+            elif next_token == Token("QUESTION_MARK"):
+                tokens, middle = self.parse_conditional_middle(tokens)
+                tokens, right = self.parse_expression(
+                    tokens, TOKEN_PRECEDENCE[next_token.type]
+                )
+                left = ConditionalNode(left, middle, right)
 
             else:
                 if isinstance(left, UnaryNode):

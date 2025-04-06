@@ -100,29 +100,29 @@ TOKEN_PRECEDENCE = {
     "XOR_ASSIGN": 3,
     "LEFT_SHIFT_ASSIGN": 3,
     "RIGHT_SHIFT_ASSIGN": 3,
-    "OR_LOGICAL": 4,
-    "AND_LOGICAL": 5,
-    "OR_LOGICAL": 6,
-    "AND_LOGICAL": 7,
-    "OR_BITWISE": 8,
-    "XOR_BITWISE": 9,
-    "AND_BITWISE": 10,
-    "NOT_EQUAL": 11,
-    "EQUAL": 11,
-    "GREATER_OR_EQUAL": 12,
-    "LESS_OR_EQUAL": 12,
-    "GREATER_THAN": 12,
-    "LESS_THAN": 12,
-    "RIGHT_SHIFT": 13,
-    "LEFT_SHIFT": 13,
-    "ADD": 14,
-    "HYPHEN": 14,
-    "MULTIPLY": 15,
-    "DIVIDE": 15,
-    "REMAINDER": 15,
-    "NOT": 17,
-    "INCREMENT": 16,
-    "DOUBLE_HYPHEN": 16,
+    "QUESTION_MARK": 4,
+    "OR_LOGICAL": 5,
+    "AND_LOGICAL": 6,
+    "OR_LOGICAL": 7,
+    "AND_LOGICAL": 8,
+    "OR_BITWISE": 9,
+    "XOR_BITWISE": 10,
+    "AND_BITWISE": 11,
+    "NOT_EQUAL": 12,
+    "EQUAL": 12,
+    "GREATER_OR_EQUAL": 13,
+    "LESS_OR_EQUAL": 13,
+    "GREATER_THAN": 13,
+    "LESS_THAN": 13,
+    "RIGHT_SHIFT": 14,
+    "LEFT_SHIFT": 14,
+    "ADD": 15,
+    "HYPHEN": 15,
+    "MULTIPLY": 16,
+    "DIVIDE": 16,
+    "REMAINDER": 16,
+    "INCREMENT": 17,
+    "DOUBLE_HYPHEN": 17,
 }
 
 UNARY_TOKENS = [
@@ -163,6 +163,7 @@ BINARY_TOKENS = [
     Token("AND_ASSIGN"),
     Token("OR_ASSIGN"),
     Token("XOR_ASSIGN"),
+    Token("QUESTION_MARK"),
 ]
 
 
@@ -219,6 +220,18 @@ class BlockItemNode:
 
     def __repr__(self) -> str:
         return f"BLOCK_ITEM({self.child})"
+
+
+class IfNode:
+    def __init__(
+        self, condition: ExpressionNode, then: Statement, else_: Statement = None
+    ) -> None:
+        self.condition = condition
+        self.then = then
+        self.else_ = else_
+
+    def __repr__(self):
+        return f"IF({self.condition}, {self.then}, {self.else_})"
 
 
 class FunctionNode:
@@ -305,3 +318,15 @@ class AssignmentNode(ExpressionNode):
 
     def __repr__(self) -> str:
         return f"ASSIGNMENT({self.type} {self.lvalue}, {self.rvalue})"
+
+
+class ConditionalNode(ExpressionNode):
+    def __init__(
+        self, condition: ExpressionNode, then: ExpressionNode, else_: ExpressionNode
+    ) -> None:
+        self.condition = condition
+        self.then = then
+        self.else_ = else_
+
+    def __repr__(self) -> str:
+        return f"CONDITION({self.condition}, {self.then}, {self.else_})"

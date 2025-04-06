@@ -41,8 +41,10 @@ class SemanticAnalysis:
         content = block.child
         if isinstance(content, DeclarationNode):
             return BlockItemNode(self.resolve_declaration(content))
-        elif isinstance(content, ReturnNode) or isinstance(
-            block, ExpressionNode
+        elif (
+            isinstance(content, ReturnNode)
+            or isinstance(block, ExpressionNode)
+            or isinstance(content, IfNode)
         ):  # statement
             return BlockItemNode(self.resolve_statement(content))
         elif isinstance(content, ExpressionNode):
@@ -70,6 +72,23 @@ class SemanticAnalysis:
     def resolve_statement(self, statement: Statement) -> Statement:
         if isinstance(statement, ReturnNode):
             return ReturnNode(self.resolve_expression(statement.exp))
+        elif isinstance(statement, IfNode):
+            condition = self.resolve_expression(statement.condition)
+            then = self.resolve_statement(statement.then)
+            else_ = (
+                self.resolve_statement(statement.else_)
+                if statement.else_ is not None
+                else None
+            )
+            return IfNode(condition, then, else_)
+        elif isinstance(statement, AssignmentNode):
+            return AssignmentNode(
+                self.resolve_expression(statement.lvalue),
+                self.resolve_expression(statement.rvalue),
+                statement.type,
+            )
+        elif statement is None:
+            return None
         elif isinstance(statement.child, ExpressionNode):
             expression = self.resolve_expression(statement.child)
             return ExpressionNode("EXPRESSION", expression)
@@ -132,6 +151,12 @@ class SemanticAnalysis:
                         "Unary operator cannot be used on constant or binary node."
                     )
             return UnaryNode(child, expression.operator, expression.postfix)
+
+        elif isinstance(expression, ConditionalNode):
+            condition = self.resolve_expression(expression.condition)
+            true_exp = self.resolve_expression(expression.then)
+            false_exp = self.resolve_expression(expression.else_)
+            return ConditionalNode(condition, true_exp, false_exp)
 
         else:
             return expression

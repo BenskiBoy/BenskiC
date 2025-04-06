@@ -1,6 +1,8 @@
 import re
 
 TOKENS = [
+    (r"if", "IF"),
+    (r"else", "ELSE"),
     (r"[a-zA-Z_]\w*\b", "IDENTIFIER"),
     (r"[0-9]+\b", "CONSTANT"),
     (r"int\b", "INT"),
@@ -44,6 +46,8 @@ TOKENS = [
     (r"\^=", "XOR_ASSIGN"),
     (r"<<=", "LEFT_SHIFT_ASSIGN"),
     (r">>=", "RIGHT_SHIFT_ASSIGN"),
+    (r"\?", "QUESTION_MARK"),
+    (r"\:", "COLON"),
 ]
 
 KEYWORDS = ["INT", "VOID", "RETURN"]
