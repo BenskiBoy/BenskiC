@@ -485,6 +485,8 @@ class AssemblyParser:
             elif isinstance(tack, IRVarNode):
                 pass
 
+            elif tack is None:
+                pass
             else:
                 raise Exception(f"Unknown IR {tack}")
 

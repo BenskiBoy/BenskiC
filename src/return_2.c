@@ -1,8 +1,5 @@
 int main(void) {
-    int x = 0;
-    if (0)
-        ;
-    else
-        x = 1;
+    int x;
+    x = (1 ==1) ? 1 : 0;
     return x;
 }

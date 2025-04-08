@@ -170,6 +170,50 @@ class Tacky:
             else:
                 pass  # TODO: Nothing to do without assignment, just highlighting
 
+        elif isinstance(ast, ReturnNode):
+            if ast.exp:
+                result = IRReturnNode(self.emit_ir(ast.exp))
+                return result
+            else:
+                return IRConstantNode(0)
+
+        elif isinstance(ast, IfNode):
+            false_label = self.make_label("IF_FALSE")
+            end_label = self.make_label("IF_END")
+
+            if not ast.else_:
+                condition = self.emit_ir(ast.condition)
+                self.ir.append(IRJumpIfZeroNode(condition, end_label))
+                self.ir.append(self.emit_ir(ast.then))
+                self.ir.append(IRLabelNode(end_label))
+            else:
+                condition = self.emit_ir(ast.condition)
+                self.ir.append(IRJumpIfZeroNode(condition, false_label))
+                self.ir.append(self.emit_ir(ast.then))
+                self.ir.append(IRJumpNode(end_label))
+                self.ir.append(IRLabelNode(false_label))
+                self.ir.append(self.emit_ir(ast.else_))
+                self.ir.append(IRLabelNode(end_label))
+
+        elif isinstance(ast, ConditionalNode):
+            e2_label = self.make_label("CONDITIONAL_ELSE")
+            end_label = self.make_label("CONDITIONAL_END")
+            result_var = IRVarNode(self.make_temporary_variable())
+
+            condition = self.emit_ir(ast.condition)
+            self.ir.append(IRJumpIfZeroNode(condition, e2_label))
+            v1 = self.emit_ir(ast.then)
+            self.ir.append(IRCopyNode(v1, result_var))
+
+            self.ir.append(IRJumpNode(end_label))
+
+            self.ir.append(IRLabelNode(e2_label))
+            v2 = self.emit_ir(ast.else_)
+            self.ir.append(IRCopyNode(v2, result_var))
+
+            self.ir.append(IRLabelNode(end_label))
+            return result_var
+
     def pretty_print(self, instructions: list[IRNode]):
         for n in instructions:
             print(n)
