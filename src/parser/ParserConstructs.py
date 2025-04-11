@@ -205,6 +205,20 @@ class Statement:
         return f"STATEMENT({self.child})"
 
 
+class LabeledStatementNode(Statement):
+    """Represents a label attached to a statement."""
+
+    def __init__(self, label: str, child: ReturnNode | ExpressionNode | None):
+        super().__init__(child)
+        self.label = label
+
+    def __str__(self):
+        return f"LABELED_STATEMENT({self.label}: {self.child})"
+
+    def __repr__(self):
+        return f"LABELED_STATEMENT({self.label}: {self.child})"
+
+
 class DeclarationNode:
     def __init__(self, identifier: str, exp: ExpressionNode | None) -> None:
         self.identifier = identifier
@@ -220,6 +234,14 @@ class BlockItemNode:
 
     def __repr__(self) -> str:
         return f"BLOCK_ITEM({self.child})"
+
+
+class GotoNode:
+    def __init__(self, label: str) -> None:
+        self.label = label
+
+    def __repr__(self):
+        return f"GOTO({self.label})"
 
 
 class IfNode:

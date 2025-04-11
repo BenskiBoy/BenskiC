@@ -5,10 +5,14 @@ from collections import defaultdict
 class SemanticAnalysis:
     def __init__(self):
         self.variable_map = defaultdict(int)
+        self.original_variable_names = []
+        self.label_declarations = []
+        self.label_calls = []
 
     def make_temporary_identifier(self, identifier: str) -> str:
         if identifier not in self.variable_map:
             self.variable_map[identifier] = 0
+            self.original_variable_names.append(identifier)
             return f"{identifier}.{str(self.variable_map[identifier])}"
         else:
             # increment the variable map for the identifier
@@ -34,6 +38,12 @@ class SemanticAnalysis:
                     res = self.parse_block_item(block_item)
                     ast.block_items[i][j] = res
 
+        if self.label_calls:  # check if there are any label calls
+            if not bool(set(self.label_declarations) & set(self.label_calls)):
+                raise Exception(
+                    f"Label name '{set(self.label_declarations) & set(self.label_calls)}' not declared."
+                )
+
         return ast
 
     def parse_block_item(self, block: BlockItemNode) -> BlockItemNode:
@@ -45,14 +55,18 @@ class SemanticAnalysis:
             isinstance(content, ReturnNode)
             or isinstance(block, ExpressionNode)
             or isinstance(content, IfNode)
+            or isinstance(content, LabeledStatementNode)
         ):  # statement
             return BlockItemNode(self.resolve_statement(content))
         elif isinstance(content, ExpressionNode):
             return BlockItemNode(self.resolve_expression(content))
         elif content is None:
             return BlockItemNode(None)
+        elif isinstance(content, GotoNode):
+            self.label_calls.append(content.label)
+            return BlockItemNode(content)
         else:
-            raise Exception(f"Unknown block item type {content.type}.")
+            raise Exception(f"Unknown block item type {content}.")
 
     def resolve_declaration(self, declaration: DeclarationNode) -> DeclarationNode:
         if declaration.identifier in self.variable_map:
@@ -72,6 +86,17 @@ class SemanticAnalysis:
     def resolve_statement(self, statement: Statement) -> Statement:
         if isinstance(statement, ReturnNode):
             return ReturnNode(self.resolve_expression(statement.exp))
+
+        elif isinstance(statement, LabeledStatementNode):
+            label = statement.label
+            if statement.label in self.label_declarations:
+                raise Exception(f"Label '{statement.label}' already called.")
+            self.label_declarations.append(statement.label)
+            return LabeledStatementNode(
+                label,
+                self.resolve_statement(statement.child),
+            )
+
         elif isinstance(statement, IfNode):
             condition = self.resolve_expression(statement.condition)
             then = self.resolve_statement(statement.then)
@@ -82,18 +107,28 @@ class SemanticAnalysis:
             )
             return IfNode(condition, then, else_)
         elif isinstance(statement, AssignmentNode):
+            if self.resolve_expression(statement.rvalue) in self.label_declarations:
+                raise Exception(
+                    f"Label '{expression.rvalue.identifier}' cannot be used as an expression."
+                )
             return AssignmentNode(
                 self.resolve_expression(statement.lvalue),
                 self.resolve_expression(statement.rvalue),
                 statement.type,
             )
+        elif isinstance(statement, GotoNode):
+            self.label_calls.append(statement.label)
+            return GotoNode(statement.label)
+
         elif statement is None:
             return None
+
         elif isinstance(statement.child, ExpressionNode):
             expression = self.resolve_expression(statement.child)
-            return ExpressionNode("EXPRESSION", expression)
+            return expression
+
         else:
-            raise Exception("Unknown statement type.")
+            raise Exception(f"Unknown statement type {type(statement)}.")
 
     def resolve_expression(self, expression: ExpressionNode) -> ExpressionNode:
 

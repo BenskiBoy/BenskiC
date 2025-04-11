@@ -1,6 +1,7 @@
 import re
 
 TOKENS = [
+    (r"goto", "GOTO"),
     (r"if", "IF"),
     (r"else", "ELSE"),
     (r"[a-zA-Z_]\w*\b", "IDENTIFIER"),
@@ -70,7 +71,7 @@ class Token:
 
 class Lexer:
     def __init__(self, content: str, debug: bool) -> None:
-        self.content = content.replace("\t", "  ")
+        self.content = content.replace("\t", "  ") + "\n"
         self.tokens = []
         self.debug = debug
 

@@ -84,6 +84,38 @@ class Parser:
 
             return tokens, IfNode(condition, then_block, else_block)
 
+        elif next_token == Token("GOTO"):
+            tokens, _ = self.expect(Token("GOTO"), tokens)
+            tokens, label = self.expect(Token("IDENTIFIER"), tokens)
+            label = label.value
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            return tokens, GotoNode(label)
+        elif next_token == Token("IDENTIFIER") and tokens[1] == Token("COLON"):
+            label_name = next_token.value
+            # label = LabelNode(label_name)
+            tokens = tokens[2:]  # Skip the identifier and colon
+
+            # Check if we're at a declaration (which would be invalid in C17)
+            if tokens[0] == Token("INT"):
+                raise Exception(
+                    f"Syntax Error: Label '{label_name}' cannot be followed by a declaration in C17"
+                )
+            if tokens[0] == Token("CLOSE_BRACE"):
+                raise Exception(
+                    f"Syntax Error: Label '{label_name}' has nothing after it"
+                )
+
+            # If we're at an empty statement (semicolon), consume it and return the label
+            if tokens[0] == Token("SEMICOLON"):
+                tokens = tokens[1:]  # Skip the semicolon
+                return tokens, LabeledStatementNode(label_name, None)
+
+            # If we're at a regular statement, parse it
+            tokens, statement = self.parse_statement(tokens)
+            # If there's an empty statement after the label
+            return tokens, LabeledStatementNode(label_name, statement)
+
         elif next_token == Token("SEMICOLON"):
             tokens = tokens[1:]
             return tokens, None

@@ -214,6 +214,16 @@ class Tacky:
             self.ir.append(IRLabelNode(end_label))
             return result_var
 
+        elif isinstance(ast, GotoNode):
+            label = ast.label
+            self.ir.append(IRJumpNode(label))
+            return None
+        elif isinstance(ast, LabeledStatementNode):
+            label = ast.label
+            self.ir.append(IRLabelNode(label))
+            self.ir.append(self.emit_ir(ast.child))
+            return None
+
     def pretty_print(self, instructions: list[IRNode]):
         for n in instructions:
             print(n)
