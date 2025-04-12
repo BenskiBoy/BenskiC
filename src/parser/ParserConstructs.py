@@ -236,6 +236,22 @@ class BlockItemNode:
         return f"BLOCK_ITEM({self.child})"
 
 
+class BlockNode:
+    def __init__(self, children: list[BlockItemNode]) -> None:
+        self.children = children
+
+    def __repr__(self) -> str:
+        return f"BLOCK({self.children})"
+
+
+class CompoundStatementNode(Statement):
+    def __init__(self, child: BlockNode) -> None:
+        self.child = child
+
+    def __repr__(self):
+        return f"Compound({self.child})"
+
+
 class GotoNode:
     def __init__(self, label: str) -> None:
         self.label = label
@@ -257,12 +273,10 @@ class IfNode:
 
 
 class FunctionNode:
-    def __init__(
-        self, return_type: str, name: str, block_items: list[BlockItemNode]
-    ) -> None:
+    def __init__(self, return_type: str, name: str, body: BlockNode) -> None:
         self.return_type = return_type
         self.name = name
-        self.block_items = block_items
+        self.body = body
 
     def assemble(self) -> str:
         return f"""
@@ -271,7 +285,7 @@ class FunctionNode:
         """
 
     def __repr__(self):
-        return f"FUNCTION({self.name} {self.return_type} {self.block_items})"
+        return f"FUNCTION({self.name} {self.return_type} {self.body})"
 
     def __str__(self) -> str:
         return f"""

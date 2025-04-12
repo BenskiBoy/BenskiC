@@ -23,8 +23,6 @@ class Parser:
 
     def parse_function(self, tokens: list[Token]) -> tuple[list[Token], FunctionNode]:
 
-        block_items = []
-
         tokens, _ = self.expect(Token("INT"), tokens)
         return_type = "INT"
         tokens, token = self.expect(Token("IDENTIFIER"), tokens)
@@ -34,6 +32,13 @@ class Parser:
 
         tokens, _ = self.expect(Token("VOID"), tokens)
         tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+
+        tokens, block_node = self.parse_block(tokens)
+
+        return tokens, FunctionNode(return_type, name, block_node)
+
+    def parse_block(self, tokens) -> tuple[list[Token], BlockNode]:
+        block_items = []
         tokens, _ = self.expect(Token("OPEN_BRACE"), tokens)
 
         while tokens[0].type != "CLOSE_BRACE":
@@ -41,7 +46,7 @@ class Parser:
             block_items.append(next_block_item)
 
         tokens, _ = self.expect(Token("CLOSE_BRACE"), tokens)
-        return tokens, FunctionNode(return_type, name, [block_items])
+        return tokens, BlockNode(block_items)
 
     def parse_block_item(self, tokens) -> tuple[list[Token], BlockItemNode]:
         if tokens[0] == Token("INT"):
@@ -54,7 +59,11 @@ class Parser:
 
     def parse_statement(self, tokens) -> tuple[list[Token], Statement]:
         next_token = tokens[0]
-        if next_token == Token("RETURN"):
+
+        if next_token == Token("OPEN_BRACE"):
+            tokens, block_node = self.parse_block(tokens)
+            return tokens, block_node
+        elif next_token == Token("RETURN"):
             tokens, _ = self.expect(Token("RETURN"), tokens)
             tokens, expression = self.parse_expression(tokens)
             tokens, _ = self.expect(Token("SEMICOLON"), tokens)
@@ -345,7 +354,4 @@ class Parser:
 def pretty_print(ast, level: int = 0, prev_content: str = "  ") -> None:
     print(ast)
     for function in ast.functions:
-        print(function.__str__())
-        for block in function.block_items:
-            for item in block:
-                print(repr(item))
+        print(function.body.__str__())

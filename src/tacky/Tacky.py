@@ -28,13 +28,7 @@ class Tacky:
 
         for function in ast.functions:
             self.ir.append(IRFunctionNode(function.name, function.return_type))
-            for block in function.block_items:
-                for item in block:
-                    if isinstance(item.child, ReturnNode):
-                        res = self.emit_ir(item.child.exp)
-                        self.ir.append(IRReturnNode(res))
-                    else:
-                        res = self.emit_ir(item.child)
+            self.emit_ir(function.body)
             self.ir.append(
                 IRReturnNode(IRConstantNode(0))
             )  # for the case of no return, if there is a return at the end, this will never be called
@@ -45,6 +39,14 @@ class Tacky:
 
         if ast is None:
             return None
+
+        elif isinstance(ast, BlockNode):
+            for block_item in ast.children:
+                if isinstance(block_item.child, ReturnNode):
+                    res = self.emit_ir(block_item.child.exp)
+                    self.ir.append(IRReturnNode(res))
+                else:
+                    self.emit_ir(block_item.child)
 
         elif isinstance(ast, ConstantNode):
             return IRConstantNode(ast.value)

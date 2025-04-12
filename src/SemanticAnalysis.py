@@ -4,26 +4,55 @@ from collections import defaultdict
 
 class SemanticAnalysis:
     def __init__(self):
-        self.variable_map = defaultdict(int)
+        self.variable_scopes = [
+            {}
+        ]  # Stack of scopes - each is a dict mapping original names to unique names
+        self.scope_level = 0
+        self.all_declarations = (
+            set()
+        )  # Track all declarations across all scopes for error reporting
         self.original_variable_names = []
         self.label_declarations = []
         self.label_calls = []
 
+    def enter_scope(self):
+        """Create a new variable scope when entering a block."""
+        self.variable_scopes.append({})
+        self.scope_level += 1
+
+    def exit_scope(self):
+        """Exit the current scope, but keep track of all declarations for error reporting."""
+        # Before we pop, record all declarations from this scope in all_declarations
+        for var in self.variable_scopes[-1]:
+            self.all_declarations.add(var)
+
+        # Now pop the scope
+        self.variable_scopes.pop()
+        self.scope_level -= 1
+
     def make_temporary_identifier(self, identifier: str) -> str:
-        if identifier not in self.variable_map:
-            self.variable_map[identifier] = 0
-            self.original_variable_names.append(identifier)
-            return f"{identifier}.{str(self.variable_map[identifier])}"
-        else:
-            # increment the variable map for the identifier
-            self.variable_map[identifier] += 1
-            return f"{identifier}.{str(self.variable_map[identifier] - 1)}"  # minus 1 so starts at zero
+        """Create a unique identifier for a variable in the current scope."""
+        current_scope = self.variable_scopes[-1]
+
+        # Check if variable already exists in current scope (shadowing is not allowed in same scope)
+        if identifier in current_scope:
+            raise Exception(f"Variable '{identifier}' already declared in this scope.")
+
+        # Create unique name based on scope level and total occurrences
+        # var_count = sum(1 for scope in self.variable_scopes if identifier in scope)
+        unique_name = f"{identifier}.{self.scope_level}"  # .{var_count}"
+
+        # Add to current scope
+        current_scope[identifier] = unique_name
+        self.original_variable_names.append(identifier)
+        return unique_name
 
     def get_temporary_identifier(self, identifier: str) -> str:
-        if identifier in self.variable_map:
-            return f"{identifier}.{str(self.variable_map[identifier])}"
-        else:
-            raise Exception(f"Temporary identifier '{identifier}' not found.")
+        for scope in reversed(range(self.scope_level + 1)):
+            if identifier in self.variable_scopes[scope]:
+                return f"{identifier}.{scope}"  # self.variable_map[scope][identifier]
+
+        raise Exception(f"Variable '{identifier}' not declared.")
 
     def parse(self, ast: ProgramNode) -> ProgramNode:
 
@@ -33,10 +62,7 @@ class SemanticAnalysis:
                     ast.functions[0] = self.parse(function)
 
         elif isinstance(ast, FunctionNode):
-            for i, child in enumerate(ast.block_items):
-                for j, block_item in enumerate(child):
-                    res = self.parse_block_item(block_item)
-                    ast.block_items[i][j] = res
+            self.body = self.parse_block(ast.body)
 
         if self.label_calls:  # check if there are any label calls
             if not bool(set(self.label_declarations) & set(self.label_calls)):
@@ -45,6 +71,13 @@ class SemanticAnalysis:
                 )
 
         return ast
+
+    def parse_block(self, block: BlockNode) -> BlockNode:
+        self.enter_scope()
+        for i, block_item in enumerate(block.children):
+            block.children[i] = self.parse_block_item(block_item)
+        self.exit_scope()
+        return block
 
     def parse_block_item(self, block: BlockItemNode) -> BlockItemNode:
 
@@ -65,26 +98,44 @@ class SemanticAnalysis:
         elif isinstance(content, GotoNode):
             self.label_calls.append(content.label)
             return BlockItemNode(content)
+        elif isinstance(content, BlockNode):
+            block = self.parse_block(content)
+            return BlockItemNode(block)
         else:
             raise Exception(f"Unknown block item type {content}.")
 
     def resolve_declaration(self, declaration: DeclarationNode) -> DeclarationNode:
-        if declaration.identifier in self.variable_map:
+        # Check if already declared in current scope
+        if declaration.identifier in self.variable_scopes[-1]:
             raise Exception(f"Variable '{declaration.identifier}' already declared.")
 
-        unique_name = self.make_temporary_identifier(declaration.identifier)
-        if declaration.exp is not None:
-            expression = self.resolve_expression(declaration.exp)
-        else:
-            expression = None
+        # Create unique name but DON'T add to current scope yet
+        unique_name = f"{declaration.identifier}.{self.scope_level}"
 
-        return DeclarationNode(
-            unique_name,
-            expression,
-        )
+        # Need to temporarily add the variable to the scope before resolving the expression
+        # to handle cases where the variable is used in its own initialization
+        self.variable_scopes[-1][declaration.identifier] = unique_name
+
+        # Resolve the initialization expression (if any)
+        resolved_exp = None
+        if declaration.exp is not None:
+            resolved_exp = self.resolve_expression(declaration.exp)
+
+        # Variable is already added to current scope
+        self.original_variable_names.append(declaration.identifier)
+
+        return DeclarationNode(unique_name, resolved_exp)
 
     def resolve_statement(self, statement: Statement) -> Statement:
-        if isinstance(statement, ReturnNode):
+
+        if isinstance(statement, BlockNode):
+            self.enter_scope()
+            for i, block_item in enumerate(statement.children):
+                statement.children[i] = self.parse_block_item(block_item)
+            self.exit_scope()
+            return statement
+
+        elif isinstance(statement, ReturnNode):
             return ReturnNode(self.resolve_expression(statement.exp))
 
         elif isinstance(statement, LabeledStatementNode):
@@ -134,10 +185,11 @@ class SemanticAnalysis:
 
         print(f"resolving expression {repr(expression)}")
         if isinstance(expression, VarNode):
-            if expression.identifier in self.variable_map:
-                return VarNode(self.get_temporary_identifier(expression.identifier))
-            else:
-                raise Exception(f"Variable '{expression.identifier}' not declared.")
+            return VarNode(self.get_temporary_identifier(expression.identifier))
+            # if expression.identifier in self.variable_map:
+            #     return VarNode(self.get_temporary_identifier(expression.identifier))
+            # else:
+            #     raise Exception(f"Variable '{expression.identifier}' not declared.")
         elif isinstance(
             expression,
             AssignmentNode,
@@ -197,10 +249,6 @@ class SemanticAnalysis:
             return expression
 
     def pretty_print(self, ast):
-        print(self.variable_map)
-
+        print(ast)
         for function in ast.functions:
-            print(function.__str__())
-            for block in function.block_items:
-                for item in block:
-                    print(repr(item))
+            print(function.body.__str__())
