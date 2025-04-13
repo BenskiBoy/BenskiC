@@ -226,6 +226,80 @@ class Tacky:
             self.ir.append(self.emit_ir(ast.child))
             return None
 
+        elif isinstance(ast, InitDeclNode):
+            if ast.declaration:
+                result = self.emit_ir(ast.declaration)
+                return result  # IRVarNode(ast.declaration.identifier)
+            else:
+                pass
+
+        elif isinstance(ast, InitExprNode):
+            if ast.expression:
+                result = self.emit_ir(ast.expression)
+                return result  # IRVarNode(ast.expression.identifier)
+            else:
+                pass
+
+        elif isinstance(ast, BreakNode):
+            label = ast.label
+            self.ir.append(IRJumpNode("_BREAK" + label + "_"))
+            return None
+        elif isinstance(ast, ContinueNode):
+            label = ast.label
+            self.ir.append(IRJumpNode("_CONTINUE" + label + "_"))
+            return None
+
+        elif isinstance(ast, DoWhileNode):
+            loop_label = self.make_label("DO_WHILE_LOOP")
+            break_label = self.make_label("BREAK_DO_WHILE")
+            continue_label = self.make_label("CONTINUE_DO_WHILE")
+            condition_result_var = IRVarNode(self.make_temporary_variable())
+
+            self.ir.append(IRLabelNode(loop_label))
+            self.emit_ir(ast.body)
+
+            self.ir.append(IRLabelNode(continue_label))
+            condition = self.emit_ir(ast.condition)
+            self.ir.append(IRCopyNode(condition, condition_result_var))
+            self.ir.append(IRJumpIfNotZeroNode(condition_result_var, loop_label))
+            self.ir.append(IRLabelNode(break_label))
+
+        elif isinstance(ast, WhileNode):
+            break_label = self.make_label("BREAK_WHILE_LOOP")
+            continue_label = self.make_label("CONTINUE_WHILE_LOOP")
+            condition_result_var = IRVarNode(self.make_temporary_variable())
+
+            self.ir.append(IRLabelNode(continue_label))
+
+            condition = self.emit_ir(ast.condition)
+            self.ir.append(IRCopyNode(condition, condition_result_var))
+            self.ir.append(IRJumpIfZeroNode(condition_result_var, break_label))
+            self.emit_ir(ast.body)
+
+            self.ir.append(IRJumpNode(continue_label))
+            self.ir.append(IRLabelNode(break_label))
+
+        elif isinstance(ast, ForNode):
+            loop_label = self.make_label("FOR_LOOP")
+            break_label = self.make_label("BREAK_FOR_LOOP")
+            continue_label = self.make_label("CONTINUE_FOR_LOOP")
+            condition_result_var = IRVarNode(self.make_temporary_variable())
+
+            if ast.init:
+                self.emit_ir(ast.init)
+            self.ir.append(IRLabelNode(loop_label))
+
+            if ast.condition:
+                condition = self.emit_ir(ast.condition)
+                self.ir.append(IRCopyNode(condition, condition_result_var))
+                self.ir.append(IRJumpIfZeroNode(condition_result_var, break_label))
+            self.emit_ir(ast.body)
+
+            self.ir.append(IRLabelNode(continue_label))
+            self.emit_ir(ast.post)
+            self.ir.append(IRJumpNode(loop_label))
+            self.ir.append(IRLabelNode(break_label))
+
     def pretty_print(self, instructions: list[IRNode]):
         for n in instructions:
             print(n)

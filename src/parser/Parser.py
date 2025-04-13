@@ -63,12 +63,90 @@ class Parser:
         if next_token == Token("OPEN_BRACE"):
             tokens, block_node = self.parse_block(tokens)
             return tokens, block_node
+
         elif next_token == Token("RETURN"):
             tokens, _ = self.expect(Token("RETURN"), tokens)
             tokens, expression = self.parse_expression(tokens)
             tokens, _ = self.expect(Token("SEMICOLON"), tokens)
 
             return tokens, ReturnNode(expression)
+
+        elif next_token == Token("WHILE"):
+            tokens, _ = self.expect(Token("WHILE"), tokens)
+            tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+            tokens, condition = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+
+            tokens, body = self.parse_statement(tokens)
+
+            return tokens, WhileNode(condition, body)
+
+        elif next_token == Token("FOR"):
+            tokens, _ = self.expect(Token("FOR"), tokens)
+            tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+
+            # Parse the initialization statement
+            if tokens[0] == Token("INT"):
+                tokens, declaration = self.parse_declaration(tokens)
+                init_statement = InitDeclNode(declaration)
+            else:
+                if tokens[0] == Token("SEMICOLON"):
+                    tokens = tokens[1:]
+                    init_statement = None
+                else:
+                    tokens, init_statement = self.parse_expression(tokens)
+                    init_statement = InitExprNode(init_statement)
+                    tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            # Parse the condition expression
+            if tokens[0] == Token("SEMICOLON"):
+                tokens = tokens[1:]
+                condition = None
+            else:
+                tokens, condition = self.parse_expression(tokens)
+                tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            if tokens[0] == Token("CLOSE_PAREN"):
+                post = None
+            else:
+                # Parse the body of the loop
+                tokens, post = self.parse_expression(tokens)
+
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+
+            # Parse the body of the loop
+            tokens, body = self.parse_statement(tokens)
+
+            return tokens, ForNode(body, init_statement, condition, post)
+
+        elif next_token == Token("BREAK"):
+            tokens, _ = self.expect(Token("BREAK"), tokens)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            return tokens, BreakNode()
+
+        elif next_token == Token("CONTINUE"):
+            tokens, _ = self.expect(Token("CONTINUE"), tokens)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            return tokens, ContinueNode()
+
+        elif next_token == Token("DO"):
+            tokens, _ = self.expect(Token("DO"), tokens)
+            # Special handling for empty statement case
+            if tokens[0] == Token("SEMICOLON"):
+                tokens = tokens[1:]  # Consume the semicolon
+                body = None  # Empty statement
+            else:
+                tokens, body = self.parse_statement(tokens)
+
+            tokens, _ = self.expect(Token("WHILE"), tokens)
+            tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+            tokens, condition = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+
+            return tokens, DoWhileNode(condition, body)
 
         elif next_token == Token("IF"):
             tokens, _ = self.expect(Token("IF"), tokens)
@@ -194,7 +272,8 @@ class Parser:
                     operator = self.parse_binary_operator(next_token, False)
                 elif isinstance(left, ConstantNode):
                     operator = self.parse_binary_operator(next_token, False)
-
+                elif isinstance(left, AssignmentNode):
+                    operator = self.parse_binary_operator(next_token, False)
                 else:
                     raise Exception(f"Unexpected left operand type {type(left)}")
                 tokens = tokens[1:]

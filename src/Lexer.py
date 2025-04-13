@@ -1,6 +1,11 @@
 import re
 
 TOKENS = [
+    (r"do", "DO"),
+    (r"while", "WHILE"),
+    (r"for", "FOR"),
+    (r"break", "BREAK"),
+    (r"continue", "CONTINUE"),
     (r"goto", "GOTO"),
     (r"if", "IF"),
     (r"else", "ELSE"),

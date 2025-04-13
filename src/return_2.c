@@ -1,16 +1,9 @@
 int main(void) {
-    int a = 0;
-    if (a) {
-        int b = 4;
-        return b;
+    int foo = 0;
+    for (int i = 400; i != 0; i = i - 100){
+        foo += 1;
+        continue;
     }
-    else {
-        int c = 3;
-        if (a < c) {
-            return !a;
-        } else {
-            return 5;
-        }
-    }
-    return a;
+    return foo;
+
 }

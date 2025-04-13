@@ -272,6 +272,85 @@ class IfNode:
         return f"IF({self.condition}, {self.then}, {self.else_})"
 
 
+class WhileNode:
+    def __init__(
+        self, condition: ExpressionNode, body: Statement, label: str = ""
+    ) -> None:
+        self.condition = condition
+        self.body = body
+        self.label = label
+
+    def __repr__(self):
+        return f"WHILE({self.label} {self.condition}, {self.body})"
+
+
+class DoWhileNode:
+    def __init__(
+        self, condition: ExpressionNode, body: Statement, label: str = ""
+    ) -> None:
+        self.condition = condition
+        self.body = body
+        self.label = label
+
+    def __repr__(self):
+        return f"DOWHILE({self.label} {self.condition}, {self.body})"
+
+
+class InitDeclNode:
+    def __init__(self, declaration: DeclarationNode, label: str = "") -> None:
+        self.declaration = declaration
+        self.label = label
+
+    def __repr__(self):
+        return f"INIT_DECL({self.declaration}"
+
+
+class InitExprNode:
+    def __init__(self, expression: ExpressionNode = None, label: str = "") -> None:
+        self.expression = expression
+        self.label = label
+
+    def __repr__(self):
+        return f"INIT_EXPR({self.expression})"
+
+
+class ForNode:
+    def __init__(
+        self,
+        body: Statement,
+        init: InitDeclNode | InitExprNode = None,
+        condition: ExpressionNode = None,
+        post: ExpressionNode = None,
+        label: str = "",
+    ) -> None:
+        self.condition = condition
+        self.body = body
+        self.init = init
+        self.post = post
+        self.label = label
+
+    def __repr__(self):
+        return (
+            f"FOR({self.label} {self.init}, {self.condition}, {self.post}, {self.body})"
+        )
+
+
+class BreakNode:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+
+    def __repr__(self):
+        return f"BREAK({self.label})"
+
+
+class ContinueNode:
+    def __init__(self, label: str = "") -> None:
+        self.label = label
+
+    def __repr__(self):
+        return f"CONTINUE({self.label})"
+
+
 class FunctionNode:
     def __init__(self, return_type: str, name: str, body: BlockNode) -> None:
         self.return_type = return_type

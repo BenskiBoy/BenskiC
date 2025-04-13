@@ -55,11 +55,16 @@ class SemanticAnalysis:
         raise Exception(f"Variable '{identifier}' not declared.")
 
     def parse(self, ast: ProgramNode) -> ProgramNode:
+        ast = self.semantic_analysis_parse(ast)
+        ast = self.loop_parse(ast)
 
+        return ast
+
+    def semantic_analysis_parse(self, ast: ProgramNode) -> ProgramNode:
         if isinstance(ast, ProgramNode):
             for i, function in enumerate(ast.functions):
                 if isinstance(function, FunctionNode):
-                    ast.functions[0] = self.parse(function)
+                    ast.functions[0] = self.semantic_analysis_parse(function)
 
         elif isinstance(ast, FunctionNode):
             self.body = self.parse_block(ast.body)
@@ -71,6 +76,101 @@ class SemanticAnalysis:
                 )
 
         return ast
+
+    def loop_parse(self, ast: ProgramNode) -> ProgramNode:
+        """Recursively traverse the AST and assign labels to loops for break/continue handling."""
+        self.loop_count = 0  # Counter for generating unique loop labels
+        self.loop_stack = []  # Stack of current loop labels (for nested loops)
+
+        # Start the recursive traversal
+        if isinstance(ast, ProgramNode):
+            for i, function in enumerate(ast.functions):
+                ast.functions[i] = self._loop_parse_node(function)
+
+        return ast
+
+    def _loop_parse_node(self, node):
+        """Process a single node during loop parsing."""
+        if node is None:
+            return None
+
+        # Handle different node types
+        if isinstance(node, FunctionNode):
+            node.body = self._loop_parse_node(node.body)
+
+        elif isinstance(node, WhileNode):
+            # Create a unique label for this loop
+            loop_label = f"_WHILE_LOOP_{self.loop_count}"
+            self.loop_count += 1
+
+            # Push this loop onto the stack for any break/continue statements inside
+            self.loop_stack.append(loop_label)
+
+            # Process loop body
+            node.body = self._loop_parse_node(node.body)
+
+            # Assign label and pop from stack
+            node.label = loop_label
+            self.loop_stack.pop()
+
+        elif isinstance(node, ForNode):
+            # Similar handling for for loops
+            loop_label = f"_FOR_LOOP_{self.loop_count}"
+            self.loop_count += 1
+            self.loop_stack.append(loop_label)
+
+            node.body = self._loop_parse_node(node.body)
+            if node.init:
+                node.init = self._loop_parse_node(node.init)
+
+            node.label = loop_label
+            self.loop_stack.pop()
+
+        elif isinstance(node, DoWhileNode):
+            # Similar handling for do-while loops
+            loop_label = f"_DO_WHILE_{self.loop_count}"
+            self.loop_count += 1
+            self.loop_stack.append(loop_label)
+
+            node.body = self._loop_parse_node(node.body)
+
+            node.label = loop_label
+            self.loop_stack.pop()
+
+        elif isinstance(node, BreakNode):
+            # Check we're actually in a loop
+            if not self.loop_stack:
+                raise Exception("Break statement outside of loop")
+
+            # Assign the innermost loop label to this break
+            node.label = self.loop_stack[-1]
+
+        elif isinstance(node, ContinueNode):
+            # Similar handling for continue
+            if not self.loop_stack:
+                raise Exception("Continue statement outside of loop")
+
+            node.label = self.loop_stack[-1]
+
+        elif isinstance(node, BlockNode):
+            # Process each child in a block
+            for i, child in enumerate(node.children):
+                if isinstance(child, BlockItemNode):
+                    child.child = self._loop_parse_node(child.child)
+                else:
+                    node.children[i] = self._loop_parse_node(child)
+
+        elif isinstance(node, IfNode):
+            node.then = self._loop_parse_node(node.then)
+            if node.else_:
+                node.else_ = self._loop_parse_node(node.else_)
+
+        elif isinstance(node, BlockItemNode):
+            node.child = self._loop_parse_node(node.child)
+
+        # Add handling for other node types that might contain loops or break/continue
+
+        return node
 
     def parse_block(self, block: BlockNode) -> BlockNode:
         self.enter_scope()
@@ -89,6 +189,11 @@ class SemanticAnalysis:
             or isinstance(block, ExpressionNode)
             or isinstance(content, IfNode)
             or isinstance(content, LabeledStatementNode)
+            or isinstance(content, WhileNode)
+            or isinstance(content, DoWhileNode)
+            or isinstance(content, ForNode)
+            or isinstance(content, BreakNode)
+            or isinstance(content, ContinueNode)
         ):  # statement
             return BlockItemNode(self.resolve_statement(content))
         elif isinstance(content, ExpressionNode):
@@ -174,6 +279,36 @@ class SemanticAnalysis:
         elif statement is None:
             return None
 
+        elif isinstance(statement, WhileNode):
+            condition = self.resolve_expression(statement.condition)
+            body = self.resolve_statement(statement.body)
+            return WhileNode(condition, body)
+
+        elif isinstance(statement, DoWhileNode):
+            body = self.resolve_statement(statement.body)
+            condition = self.resolve_expression(statement.condition)
+            return DoWhileNode(condition, body)
+
+        elif isinstance(statement, BreakNode):
+            return BreakNode()
+
+        elif isinstance(statement, ContinueNode):
+            return ContinueNode()
+
+        elif isinstance(statement, ForNode):
+            self.enter_scope()
+            init = None
+            if statement.init:
+                init = self._resolve_for_init(statement.init)
+            condition = None
+            if statement.condition:
+                condition = self.resolve_expression(statement.condition)
+            post = None
+            if statement.post:
+                post = self.resolve_expression(statement.post)
+            body = self.resolve_statement(statement.body)
+            self.exit_scope()
+            return ForNode(body, init, condition, post)
         elif isinstance(statement.child, ExpressionNode):
             expression = self.resolve_expression(statement.child)
             return expression
@@ -181,15 +316,27 @@ class SemanticAnalysis:
         else:
             raise Exception(f"Unknown statement type {type(statement)}.")
 
+    def _resolve_for_init(
+        self, init: InitDeclNode | InitExprNode
+    ) -> InitDeclNode | InitExprNode:
+        if isinstance(init, InitDeclNode):
+            return InitDeclNode(
+                self.resolve_declaration(init.declaration),
+                init.label,
+            )
+        elif isinstance(init, InitExprNode):
+            return InitExprNode(
+                self.resolve_expression(init.expression),
+                init.label,
+            )
+        else:
+            raise Exception(f"Unknown for loop initialization type {type(init)}.")
+
     def resolve_expression(self, expression: ExpressionNode) -> ExpressionNode:
 
         print(f"resolving expression {repr(expression)}")
         if isinstance(expression, VarNode):
             return VarNode(self.get_temporary_identifier(expression.identifier))
-            # if expression.identifier in self.variable_map:
-            #     return VarNode(self.get_temporary_identifier(expression.identifier))
-            # else:
-            #     raise Exception(f"Variable '{expression.identifier}' not declared.")
         elif isinstance(
             expression,
             AssignmentNode,
