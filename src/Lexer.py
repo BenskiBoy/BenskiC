@@ -1,6 +1,9 @@
 import re
 
 TOKENS = [
+    (r"switch", "SWITCH"),
+    (r"case", "CASE"),
+    (r"default", "DEFAULT"),
     (r"do", "DO"),
     (r"while", "WHILE"),
     (r"for", "FOR"),

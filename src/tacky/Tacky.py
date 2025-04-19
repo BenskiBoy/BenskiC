@@ -21,6 +21,19 @@ class Tacky:
         self.temp_label_counter[ident] += 1
         return f"_{ident}_{str(self.temp_label_counter[ident] - 1)}_"  # minus 1 so starts at zero
 
+    def get_control_flow_label(self, prefix, node_label):
+        """Generate a consistent control flow label"""
+        # Extract just the important parts from node_label (e.g., "FOR_LOOP_1")
+        parts = node_label.strip("_").split("_")
+        if len(parts) >= 3:
+            # Extract type and number: "FOR", "LOOP", "1"
+            type_part = parts[-3]  # "FOR"
+            number_part = parts[-1]  # "1"
+            return f"_{prefix}_{type_part}_LOOP_{number_part}_"
+        else:
+            # Fallback for any other format
+            return f"_{prefix}_{node_label}_"
+
     def parse(self, ast) -> list[IRNode]:
         self.emit_ir(self.ast)
 
@@ -241,18 +254,18 @@ class Tacky:
                 pass
 
         elif isinstance(ast, BreakNode):
-            label = ast.label
-            self.ir.append(IRJumpNode("_BREAK" + label + "_"))
+            self.ir.append(IRJumpNode(self.get_control_flow_label("BREAK", ast.label)))
             return None
         elif isinstance(ast, ContinueNode):
-            label = ast.label
-            self.ir.append(IRJumpNode("_CONTINUE" + label + "_"))
+            self.ir.append(
+                IRJumpNode(self.get_control_flow_label("CONTINUE", ast.label))
+            )
             return None
 
         elif isinstance(ast, DoWhileNode):
-            loop_label = self.make_label("DO_WHILE_LOOP")
-            break_label = self.make_label("BREAK_DO_WHILE")
-            continue_label = self.make_label("CONTINUE_DO_WHILE")
+            loop_label = self.get_control_flow_label("", ast.label)
+            break_label = self.get_control_flow_label("BREAK", ast.label)
+            continue_label = self.get_control_flow_label("CONTINUE", ast.label)
             condition_result_var = IRVarNode(self.make_temporary_variable())
 
             self.ir.append(IRLabelNode(loop_label))
@@ -265,8 +278,8 @@ class Tacky:
             self.ir.append(IRLabelNode(break_label))
 
         elif isinstance(ast, WhileNode):
-            break_label = self.make_label("BREAK_WHILE_LOOP")
-            continue_label = self.make_label("CONTINUE_WHILE_LOOP")
+            break_label = self.get_control_flow_label("BREAK", ast.label)
+            continue_label = self.get_control_flow_label("CONTINUE", ast.label)
             condition_result_var = IRVarNode(self.make_temporary_variable())
 
             self.ir.append(IRLabelNode(continue_label))
@@ -280,9 +293,10 @@ class Tacky:
             self.ir.append(IRLabelNode(break_label))
 
         elif isinstance(ast, ForNode):
-            loop_label = self.make_label("FOR_LOOP")
-            break_label = self.make_label("BREAK_FOR_LOOP")
-            continue_label = self.make_label("CONTINUE_FOR_LOOP")
+            loop_label = self.get_control_flow_label("", ast.label)
+            break_label = self.get_control_flow_label("BREAK", ast.label)
+            continue_label = self.get_control_flow_label("CONTINUE", ast.label)
+
             condition_result_var = IRVarNode(self.make_temporary_variable())
 
             if ast.init:
@@ -299,6 +313,108 @@ class Tacky:
             self.emit_ir(ast.post)
             self.ir.append(IRJumpNode(loop_label))
             self.ir.append(IRLabelNode(break_label))
+
+        elif isinstance(ast, CaseNode):
+            if not hasattr(ast, "label") or not ast.label:
+                raise AttributeError("CaseNode missing 'label' attribute")
+
+            self.ir.append(IRLabelNode(ast.label))
+            for item in ast.body:
+                self.ir.append(self.emit_ir(item))
+
+            return None
+
+        elif isinstance(ast, DefaultNode):
+            if not hasattr(ast, "label") or not ast.label:
+                raise AttributeError("DefaultNode missing 'label' attribute")
+
+            self.ir.append(IRLabelNode(ast.label))
+            for item in ast.body:
+                self.ir.append(self.emit_ir(item))
+            return None
+
+        elif isinstance(ast, SwitchNode):
+            # Ensure required attributes exist
+            if not hasattr(ast, "label"):
+                raise AttributeError("SwitchNode missing 'label' attribute")
+            if not hasattr(ast, "case_targets"):
+                raise AttributeError("SwitchNode missing 'case_targets' attribute")
+
+            switch_end_label = f"{ast.label}_END"
+            switch_break_label = self.get_control_flow_label("BREAK", ast.label)
+
+            condition_value = self.emit_ir(ast.condition)
+
+            if not isinstance(condition_value, (IRVarNode, IRConstantNode)):
+                temp_var = IRVarNode(self.make_temporary_variable())
+                self.ir.append(IRCopyNode(condition_value, temp_var))
+                condition_value = temp_var
+
+            case_nodes = {}  # Maps label -> CaseNode
+            default_node = None
+
+            # Function to recursively find case/default nodes in the switch body
+            def find_case_nodes(node):
+                if node is None:
+                    return
+
+                # First check if this node itself is a case or default
+                if isinstance(node, CaseNode):
+                    case_nodes[node.label] = node
+                    for item in node.body:
+                        find_case_nodes(item)
+                elif isinstance(node, DefaultNode):
+                    nonlocal default_node
+                    default_node = node
+                    for item in node.body:
+                        find_case_nodes(item)
+                elif isinstance(node, BlockNode):
+                    for item in node.children:
+                        find_case_nodes(item)
+                elif isinstance(node, BlockItemNode):
+                    find_case_nodes(node.child)
+                elif isinstance(node, DoWhileNode):
+                    find_case_nodes(node.body)
+                elif isinstance(node, WhileNode):
+                    find_case_nodes(node.body)
+                elif isinstance(node, ForNode):
+                    find_case_nodes(node.body)
+                elif isinstance(node, IfNode):
+                    find_case_nodes(node.then)
+                    if node.else_:
+                        find_case_nodes(node.else_)
+
+            find_case_nodes(ast.body)
+
+            for case_label in ast.case_targets:
+                if case_label in case_nodes:
+                    case_node = case_nodes[case_label]
+                    case_value = self.emit_ir(case_node.condition)
+
+                    # Compare: switch_condition == case_value
+                    cmp_result = IRVarNode(self.make_temporary_variable())
+                    self.ir.append(
+                        IRBinaryNode(
+                            IRBinaryOperator.EQUAL,
+                            condition_value,
+                            case_value,
+                            cmp_result,
+                        )
+                    )
+
+                    self.ir.append(IRJumpIfNotZeroNode(cmp_result, case_label))
+
+            if ast.default_target:
+                self.ir.append(IRJumpNode(ast.default_target))
+            else:
+                self.ir.append(IRJumpNode(switch_end_label))
+
+            self.emit_ir(ast.body)
+
+            self.ir.append(IRLabelNode(switch_end_label))
+            self.ir.append(IRLabelNode(switch_break_label))
+
+            return None
 
     def pretty_print(self, instructions: list[IRNode]):
         for n in instructions:

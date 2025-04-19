@@ -30,21 +30,22 @@ class SemanticAnalysis:
         self.variable_scopes.pop()
         self.scope_level -= 1
 
-    def make_temporary_identifier(self, identifier: str) -> str:
-        """Create a unique identifier for a variable in the current scope."""
+    def make_temporary_identifier(self, identifier: str, add_to_scope=True) -> str:
+
         current_scope = self.variable_scopes[-1]
 
-        # Check if variable already exists in current scope (shadowing is not allowed in same scope)
+        # Check if variable already exists in current scope
         if identifier in current_scope:
             raise Exception(f"Variable '{identifier}' already declared in this scope.")
 
-        # Create unique name based on scope level and total occurrences
-        # var_count = sum(1 for scope in self.variable_scopes if identifier in scope)
-        unique_name = f"{identifier}.{self.scope_level}"  # .{var_count}"
+        # Create unique name
+        unique_name = f"{identifier}.{self.scope_level}"
 
-        # Add to current scope
-        current_scope[identifier] = unique_name
-        self.original_variable_names.append(identifier)
+        # Add to current scope if requested
+        if add_to_scope:
+            current_scope[identifier] = unique_name
+            self.original_variable_names.append(identifier)
+
         return unique_name
 
     def get_temporary_identifier(self, identifier: str) -> str:
@@ -56,7 +57,7 @@ class SemanticAnalysis:
 
     def parse(self, ast: ProgramNode) -> ProgramNode:
         ast = self.semantic_analysis_parse(ast)
-        ast = self.loop_parse(ast)
+        ast = self.resolve_control_flow(ast)
 
         return ast
 
@@ -77,99 +78,181 @@ class SemanticAnalysis:
 
         return ast
 
-    def loop_parse(self, ast: ProgramNode) -> ProgramNode:
-        """Recursively traverse the AST and assign labels to loops for break/continue handling."""
-        self.loop_count = 0  # Counter for generating unique loop labels
-        self.loop_stack = []  # Stack of current loop labels (for nested loops)
+    def resolve_control_flow(self, ast: ProgramNode) -> ProgramNode:
+        """Unified method to handle loop and switch structures for break/continue."""
+        self.control_flow_count = 0
+        self.control_flow_stack = []
 
         # Start the recursive traversal
         if isinstance(ast, ProgramNode):
             for i, function in enumerate(ast.functions):
-                ast.functions[i] = self._loop_parse_node(function)
+                ast.functions[i] = self._resolve_control_flow_node(function)
 
         return ast
 
-    def _loop_parse_node(self, node):
-        """Process a single node during loop parsing."""
+    def _resolve_control_flow_node(self, node):
+        """Process a single node during control flow analysis."""
+
+        if not hasattr(self, "switch_depth"):
+            self.switch_depth = 0
+        if not hasattr(self, "current_switch_case_targets"):
+            self.current_switch_case_targets = []
+        if not hasattr(self, "current_switch_default_target"):
+            self.current_switch_default_target = []
+
         if node is None:
             return None
 
         # Handle different node types
         if isinstance(node, FunctionNode):
-            node.body = self._loop_parse_node(node.body)
+            node.body = self._resolve_control_flow_node(node.body)
+
+        if isinstance(node, LabeledStatementNode):
+            # Process the child statement
+            node.child = self._resolve_control_flow_node(node.child)
 
         elif isinstance(node, WhileNode):
             # Create a unique label for this loop
-            loop_label = f"_WHILE_LOOP_{self.loop_count}"
-            self.loop_count += 1
+            loop_label = f"_WHILE_LOOP_{self.control_flow_count}"
+            self.control_flow_count += 1
 
-            # Push this loop onto the stack for any break/continue statements inside
-            self.loop_stack.append(loop_label)
+            # Push this loop onto the stack - noting it's a loop type
+            self.control_flow_stack.append(("loop", loop_label))
 
             # Process loop body
-            node.body = self._loop_parse_node(node.body)
+            node.body = self._resolve_control_flow_node(node.body)
 
             # Assign label and pop from stack
             node.label = loop_label
-            self.loop_stack.pop()
+            self.control_flow_stack.pop()
 
         elif isinstance(node, ForNode):
             # Similar handling for for loops
-            loop_label = f"_FOR_LOOP_{self.loop_count}"
-            self.loop_count += 1
-            self.loop_stack.append(loop_label)
+            loop_label = f"_FOR_LOOP_{self.control_flow_count}"
+            self.control_flow_count += 1
 
-            node.body = self._loop_parse_node(node.body)
+            # Push as loop type
+            self.control_flow_stack.append(("loop", loop_label))
+
+            node.body = self._resolve_control_flow_node(node.body)
             if node.init:
-                node.init = self._loop_parse_node(node.init)
+                node.init = self._resolve_control_flow_node(node.init)
 
             node.label = loop_label
-            self.loop_stack.pop()
+            self.control_flow_stack.pop()
 
         elif isinstance(node, DoWhileNode):
             # Similar handling for do-while loops
-            loop_label = f"_DO_WHILE_{self.loop_count}"
-            self.loop_count += 1
-            self.loop_stack.append(loop_label)
+            loop_label = f"_DO_WHILE_{self.control_flow_count}"
+            self.control_flow_count += 1
 
-            node.body = self._loop_parse_node(node.body)
+            # Push as loop type
+            self.control_flow_stack.append(("loop", loop_label))
+
+            node.body = self._resolve_control_flow_node(node.body)
 
             node.label = loop_label
-            self.loop_stack.pop()
+            self.control_flow_stack.pop()
+
+        elif isinstance(node, SwitchNode):
+            # Create a unique label for this switch
+            switch_label = f"_SWITCH_{self.control_flow_count}"
+            self.control_flow_count += 1
+            self.switch_depth += 1
+
+            self.current_switch_case_targets.append([])
+            self.current_switch_default_target.append(None)
+
+            # Push this switch onto the stack - noting it's a switch type
+            self.control_flow_stack.append(("switch", switch_label))
+
+            for i, element in enumerate(node.body.children):
+                node.body.children[i] = self._resolve_control_flow_node(element)
+
+            node.case_targets = self.current_switch_case_targets[-1]
+            if self.current_switch_default_target:
+                node.default_target = self.current_switch_default_target[-1]
+
+            self.current_switch_case_targets = self.current_switch_case_targets[:-1]
+            if self.current_switch_default_target:
+                self.current_switch_default_target = self.current_switch_default_target[
+                    :-1
+                ]
+            self.switch_depth -= 1
+
+            # Assign label and pop from stack
+            node.label = switch_label
+            self.control_flow_stack.pop()
 
         elif isinstance(node, BreakNode):
-            # Check we're actually in a loop
-            if not self.loop_stack:
-                raise Exception("Break statement outside of loop")
+            # Find the nearest enclosing structure of any type (loop or switch)
+            if not self.control_flow_stack:
+                raise Exception("Break statement not within loop or switch")
 
-            # Assign the innermost loop label to this break
-            node.label = self.loop_stack[-1]
+            # Get label of nearest enclosing structure
+            structure_type, label = self.control_flow_stack[-1]
+            node.label = label
+            node.target_type = structure_type  # Store the type for code generation
 
         elif isinstance(node, ContinueNode):
-            # Similar handling for continue
-            if not self.loop_stack:
-                raise Exception("Continue statement outside of loop")
+            # Continue can only target loops, not switches
+            # Find the nearest enclosing loop
+            loop_context = next(
+                (ctx for ctx in reversed(self.control_flow_stack) if ctx[0] == "loop"),
+                None,
+            )
 
-            node.label = self.loop_stack[-1]
+            if not loop_context:
+                raise Exception("Continue statement not within loop")
 
+            # Get label of nearest enclosing loop
+            _, label = loop_context
+            node.label = label
+
+        # Continue with other node types...
         elif isinstance(node, BlockNode):
-            # Process each child in a block
             for i, child in enumerate(node.children):
                 if isinstance(child, BlockItemNode):
-                    child.child = self._loop_parse_node(child.child)
+                    child.child = self._resolve_control_flow_node(child.child)
                 else:
-                    node.children[i] = self._loop_parse_node(child)
+                    node.children[i] = self._resolve_control_flow_node(child)
 
         elif isinstance(node, IfNode):
-            node.then = self._loop_parse_node(node.then)
+            node.then = self._resolve_control_flow_node(node.then)
             if node.else_:
-                node.else_ = self._loop_parse_node(node.else_)
+                node.else_ = self._resolve_control_flow_node(node.else_)
 
         elif isinstance(node, BlockItemNode):
-            node.child = self._loop_parse_node(node.child)
+            node.child = self._resolve_control_flow_node(node.child)
 
-        # Add handling for other node types that might contain loops or break/continue
+        elif isinstance(node, CaseNode):
+            # Just process the body, don't push onto the stack
+            for i, body in enumerate(node.body):
+                node.body[i] = self._resolve_control_flow_node(body)
 
+            # Create a unique label for this case
+            case_label = f"_CASE_{self.control_flow_count}"
+            self.control_flow_count += 1
+            node.label = case_label
+            self.current_switch_case_targets[self.switch_depth - 1].append(case_label)
+
+        elif isinstance(node, DefaultNode):
+            # Just process the body, don't push onto the stack
+            for i, body in enumerate(node.body):
+                node.body[i] = self._resolve_control_flow_node(body)
+
+            # assert no continue in default
+            for i, body in enumerate(node.body):
+                if isinstance(body, ContinueNode):
+                    raise Exception("Continue statement not within loop")
+
+            # Create a unique label for this default
+            default_label = f"_DEFAULT_{self.control_flow_count}"
+            self.control_flow_count += 1
+            node.label = default_label
+            self.current_switch_default_target[self.switch_depth - 1] = default_label
+
+        # Don't forget to return the possibly modified node
         return node
 
     def parse_block(self, block: BlockNode) -> BlockNode:
@@ -194,6 +277,9 @@ class SemanticAnalysis:
             or isinstance(content, ForNode)
             or isinstance(content, BreakNode)
             or isinstance(content, ContinueNode)
+            or isinstance(content, SwitchNode)
+            or isinstance(content, CaseNode)
+            or isinstance(content, DefaultNode)
         ):  # statement
             return BlockItemNode(self.resolve_statement(content))
         elif isinstance(content, ExpressionNode):
@@ -206,20 +292,14 @@ class SemanticAnalysis:
         elif isinstance(content, BlockNode):
             block = self.parse_block(content)
             return BlockItemNode(block)
+        elif isinstance(content, DeclarationNode):
+            return BlockItemNode(self.resolve_declaration(content))
         else:
             raise Exception(f"Unknown block item type {content}.")
 
     def resolve_declaration(self, declaration: DeclarationNode) -> DeclarationNode:
-        # Check if already declared in current scope
-        if declaration.identifier in self.variable_scopes[-1]:
-            raise Exception(f"Variable '{declaration.identifier}' already declared.")
 
-        # Create unique name but DON'T add to current scope yet
-        unique_name = f"{declaration.identifier}.{self.scope_level}"
-
-        # Need to temporarily add the variable to the scope before resolving the expression
-        # to handle cases where the variable is used in its own initialization
-        self.variable_scopes[-1][declaration.identifier] = unique_name
+        unique_name = self.make_temporary_identifier(declaration.identifier)
 
         # Resolve the initialization expression (if any)
         resolved_exp = None
@@ -232,6 +312,16 @@ class SemanticAnalysis:
         return DeclarationNode(unique_name, resolved_exp)
 
     def resolve_statement(self, statement: Statement) -> Statement:
+
+        # Add switch depth tracking if not already present
+        if not hasattr(self, "switch_depth"):
+            self.switch_depth = 0
+
+        if not hasattr(self, "switch_case_values"):
+            self.switch_case_values = [{}] * 10  # TODO make this dynamic
+
+        if not hasattr(self, "default_reached"):
+            self.default_reached = [{}] * 10  # TODO make this dynamic
 
         if isinstance(statement, BlockNode):
             self.enter_scope()
@@ -309,6 +399,70 @@ class SemanticAnalysis:
             body = self.resolve_statement(statement.body)
             self.exit_scope()
             return ForNode(body, init, condition, post)
+
+        elif isinstance(statement, SwitchNode):
+            self.switch_depth += 1  # Entering switch
+            self.enter_scope()
+            self.default_reached = [{}] * 10
+
+            statement.condition = self.resolve_expression(statement.condition)
+
+            # Clear the case values for this switch level
+            self.switch_case_values[self.switch_depth - 1] = {}
+
+            statement.body = self.resolve_statement(statement.body)
+
+            self.exit_scope()
+            self.switch_depth -= 1  # Exiting switch
+
+            return statement
+
+        elif isinstance(statement, CaseNode):
+            if self.switch_depth == 0:
+                raise Exception("Case statement not within a switch statement")
+
+            if not isinstance(statement.condition, ConstantNode):
+                raise Exception("Case condition must be a constant value")
+
+            condition = self.resolve_expression(statement.condition)
+
+            # For constant values, check for duplicates
+            if isinstance(condition, ConstantNode):
+                value = condition.value
+                current_switch_cases = self.switch_case_values[self.switch_depth - 1]
+
+                if value in current_switch_cases:
+                    raise Exception(f"Duplicate case value: {value}")
+
+                # Record this case value for the current switch
+                current_switch_cases[value] = True
+
+            for i, body in enumerate(statement.body):
+                if isinstance(body, BlockItemNode):
+                    body = body.child
+                if isinstance(body, DeclarationNode):
+                    statement.body[i] = self.resolve_declaration(body)
+                else:
+                    statement.body[i] = self.resolve_statement(body)
+            return CaseNode(condition, statement.body)
+
+        elif isinstance(statement, DefaultNode):
+            if self.switch_depth == 0:
+                raise Exception("Default statement not within a switch statement")
+
+            if self.default_reached[self.switch_depth]:
+                raise Exception("Multiple default statements in switch")
+            self.default_reached[self.switch_depth] = (
+                True  # Only one default allowed, set flag
+            )
+
+            for i, body in enumerate(statement.body):
+                statement.body[i] = self.resolve_statement(body)
+            return DefaultNode(statement.body)
+
+        elif isinstance(statement, ExpressionNode):
+            return self.resolve_expression(statement)
+
         elif isinstance(statement.child, ExpressionNode):
             expression = self.resolve_expression(statement.child)
             return expression
@@ -394,8 +548,3 @@ class SemanticAnalysis:
 
         else:
             return expression
-
-    def pretty_print(self, ast):
-        print(ast)
-        for function in ast.functions:
-            print(function.body.__str__())

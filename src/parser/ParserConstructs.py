@@ -336,11 +336,12 @@ class ForNode:
 
 
 class BreakNode:
-    def __init__(self, label: str = "") -> None:
+    def __init__(self, label: str = "", target_type: str = None) -> None:
         self.label = label
+        self.target_type = target_type
 
     def __repr__(self):
-        return f"BREAK({self.label})"
+        return f"BREAK({self.label} {self.target_type})"
 
 
 class ContinueNode:
@@ -349,6 +350,46 @@ class ContinueNode:
 
     def __repr__(self):
         return f"CONTINUE({self.label})"
+
+
+class CaseNode:
+    def __init__(
+        self,
+        condition: ExpressionNode,
+        body: list[Statement],
+    ) -> None:
+        self.condition = condition
+        self.body = body
+        self.label = ""
+
+    def __repr__(self):
+        return f"CASE({self.label} {self.condition}, {self.body})"
+
+
+class DefaultNode:
+    def __init__(self, body: list[Statement]) -> None:
+        self.body = body
+        self.label = ""
+
+    def __repr__(self):
+        return f"DEFAULT({self.label} {self.body})"
+
+
+class SwitchNode:
+    def __init__(
+        self,
+        condition: ExpressionNode,
+        body: list[Statement],
+        label: str = "",
+    ) -> None:
+        self.condition = condition
+        self.body = body
+        self.label = label
+        self.case_targets = []
+        self.default_target = ""
+
+    def __repr__(self):
+        return f"SWITCH({self.label} {self.condition} {self.body})"
 
 
 class FunctionNode:

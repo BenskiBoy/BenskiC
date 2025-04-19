@@ -203,6 +203,84 @@ class Parser:
             # If there's an empty statement after the label
             return tokens, LabeledStatementNode(label_name, statement)
 
+        elif next_token == Token("SWITCH"):
+            tokens, _ = self.expect(Token("SWITCH"), tokens)
+            tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+            tokens, condition = self.parse_expression(tokens)
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+
+            tokens, body = self.parse_statement(tokens)
+
+            # Extract all case and default nodes from the body
+            switch_body = []
+            default = None
+
+            if isinstance(body, DefaultNode):
+                default = body
+                switch_body.append(BlockItemNode(body))
+            elif isinstance(body, CaseNode):
+                switch_body.append(BlockItemNode(body))
+
+            # If the body is a block node, we need to extract case and default statements
+            elif isinstance(body, BlockNode):
+                current_case = None
+
+                for item in body.children:
+                    content = item.child
+
+                    if isinstance(content, CaseNode):
+                        # Found a new case node
+                        switch_body.append(BlockItemNode(content))
+                        current_case = content
+
+                    elif isinstance(content, DefaultNode) or default:
+                        # Found the default node
+                        if default is not None:  # and content is default:
+                            raise Exception(
+                                "Switch statement can't have multiple default clauses"
+                            )
+                        default = content  # used just to check if we've already added a default
+                        current_case = None
+                        switch_body.append(BlockItemNode(content))
+
+                    elif current_case and content is not None:
+                        # This statement belongs to the current case
+                        # Append it to the current case's statement list
+                        if current_case.body is None:
+                            current_case.body = [content]
+                        elif isinstance(content, list):
+                            current_case.body.extend(BlockItemNode(content))
+                        else:
+                            current_case.body.append(BlockItemNode(content))
+                    else:
+                        # This is a statement outside any case/default - keep it
+                        switch_body.append(item)
+
+            return tokens, SwitchNode(condition, BlockNode(switch_body))
+
+        elif next_token == Token("CASE"):
+            tokens, _ = self.expect(Token("CASE"), tokens)
+            tokens, expression = self.parse_expression(tokens)
+
+            tokens, _ = self.expect(Token("COLON"), tokens)
+
+            if tokens[0] in [Token("CASE"), Token("DEFAULT"), Token("CLOSE_BRACE")]:
+                # Empty case body - no statements
+                return tokens, CaseNode(
+                    expression, [None]
+                )  # Use [None] or [] to indicate empty body
+
+            tokens, statement = self.parse_statement(tokens)
+
+            return tokens, CaseNode(expression, [statement])
+
+        elif next_token == Token("DEFAULT"):
+            tokens, _ = self.expect(Token("DEFAULT"), tokens)
+            tokens, _ = self.expect(Token("COLON"), tokens)
+            tokens, statement = self.parse_statement(tokens)
+
+            return tokens, DefaultNode([statement])
+
         elif next_token == Token("SEMICOLON"):
             tokens = tokens[1:]
             return tokens, None
@@ -429,8 +507,184 @@ class Parser:
             return tokens[1:], tokens[0]
         raise Exception(f"Syntax Error: Expected {expected}, got {tokens[0]}")
 
+    def pretty_print(self, ast, indent=0):
+        """
+        Pretty print the AST with proper indentation.
 
-def pretty_print(ast, level: int = 0, prev_content: str = "  ") -> None:
-    print(ast)
-    for function in ast.functions:
-        print(function.body.__str__())
+        Args:
+            ast: The AST node to print
+            indent: Current indentation level (default 0)
+        """
+        indent_str = "  " * indent
+
+        if isinstance(ast, ProgramNode):
+            print(f"{indent_str}Program:")
+            for function in ast.functions:
+                self.pretty_print(function, indent + 1)
+
+        elif isinstance(ast, FunctionNode):
+            print(f"{indent_str}Function: {ast.name}")
+            print(f"{indent_str}Return Type: {ast.return_type}")
+            print(f"{indent_str}Body:")
+            self.pretty_print(ast.body, indent + 1)
+
+        elif isinstance(ast, BlockNode):
+            print(f"{indent_str}Block:")
+            for child in ast.children:
+                self.pretty_print(child, indent + 1)
+
+        elif isinstance(ast, BlockItemNode):
+            self.pretty_print(ast.child, indent)
+
+        elif isinstance(ast, DeclarationNode):
+            init_str = ""
+            if ast.exp:
+                init_str = f" = {ast.exp}"
+            print(f"{indent_str}Declaration: {ast.identifier}{init_str}")
+
+        elif isinstance(ast, ReturnNode):
+            print(f"{indent_str}Return:")
+            self.pretty_print(ast.exp, indent + 1)
+
+        elif isinstance(ast, IfNode):
+            print(f"{indent_str}If:")
+            print(f"{indent_str}  Condition:")
+            self.pretty_print(ast.condition, indent + 2)
+            print(f"{indent_str}  Then:")
+            self.pretty_print(ast.then, indent + 2)
+            if ast.else_:
+                print(f"{indent_str}  Else:")
+                self.pretty_print(ast.else_, indent + 2)
+
+        elif isinstance(ast, WhileNode):
+            print(f"{indent_str}While (label: {ast.label or 'None'}):")
+            print(f"{indent_str}  Condition:")
+            self.pretty_print(ast.condition, indent + 2)
+            print(f"{indent_str}  Body:")
+            self.pretty_print(ast.body, indent + 2)
+
+        elif isinstance(ast, DoWhileNode):
+            print(f"{indent_str}Do-While (label: {ast.label or 'None'}):")
+            print(f"{indent_str}  Body:")
+            self.pretty_print(ast.body, indent + 2)
+            print(f"{indent_str}  Condition:")
+            self.pretty_print(ast.condition, indent + 2)
+
+        elif isinstance(ast, ForNode):
+            print(f"{indent_str}For (label: {ast.label or 'None'}):")
+            print(f"{indent_str}  Init:")
+            if ast.init:
+                self.pretty_print(ast.init, indent + 2)
+            else:
+                print(f"{indent_str}    None")
+            print(f"{indent_str}  Condition:")
+            if ast.condition:
+                self.pretty_print(ast.condition, indent + 2)
+            else:
+                print(f"{indent_str}    None")
+            print(f"{indent_str}  Update:")
+            if ast.post:
+                self.pretty_print(ast.post, indent + 2)
+            else:
+                print(f"{indent_str}    None")
+            print(f"{indent_str}  Body:")
+            self.pretty_print(ast.body, indent + 2)
+
+        elif isinstance(ast, SwitchNode):
+            print(f"{indent_str}Switch ({ast.label}):")
+            if ast.case_targets:
+                print(f"{indent_str}  Case Targets:")
+                for case_target in ast.case_targets:
+                    print(f"{indent_str}    {case_target}")
+            if ast.default_target:
+                print(f"{indent_str}  Default:")
+                print(f"{indent_str}    {ast.default_target}")
+            print(f"{indent_str}  Expression:")
+            self.pretty_print(ast.condition, indent + 2)
+
+            print(f"{indent_str}  Body:")
+            self.pretty_print(ast.body, indent + 2)
+
+        elif isinstance(ast, CaseNode):
+            print(f"{indent_str}Case ({ast.label}):")
+            print(f"{indent_str}  Condition:")
+            self.pretty_print(ast.condition, indent + 2)
+            print(f"{indent_str}  Statement:")
+            if ast.body:
+                self.pretty_print(ast.body, indent + 2)
+
+            else:
+                print(f"{indent_str}    None")
+
+        elif isinstance(ast, DefaultNode):
+            print(f"{indent_str}Default ({ast.label}):")
+            if ast.body:
+                self.pretty_print(ast.body, indent + 1)
+            else:
+                print(f"{indent_str}  None")
+
+        elif isinstance(ast, BreakNode):
+            print(
+                f"{indent_str}Break (target: {ast.label if hasattr(ast, 'label') else 'None'})"
+            )
+
+        elif isinstance(ast, ContinueNode):
+            print(
+                f"{indent_str}Continue (target: {ast.label if hasattr(ast, 'label') else 'None'})"
+            )
+
+        elif isinstance(ast, GotoNode):
+            print(f"{indent_str}Goto: {ast.label}")
+
+        elif isinstance(ast, LabeledStatementNode):
+            print(f"{indent_str}Label: {ast.label}")
+            if ast.child:
+                self.pretty_print(ast.child, indent + 1)
+
+        elif isinstance(ast, VarNode):
+            print(f"{indent_str}Variable: {ast.identifier}")
+
+        elif isinstance(ast, ConstantNode):
+            print(f"{indent_str}Constant: {ast.value}")
+
+        elif isinstance(ast, BinaryNode):
+            print(f"{indent_str}Binary Operation: {ast.operator}")
+            print(f"{indent_str}  Left:")
+            self.pretty_print(ast.exp_1, indent + 2)
+            print(f"{indent_str}  Right:")
+            self.pretty_print(ast.exp_2, indent + 2)
+
+        elif isinstance(ast, UnaryNode):
+            position = "Postfix" if ast.postfix else "Prefix"
+            print(f"{indent_str}{position} Unary Operation: {ast.operator}")
+            print(f"{indent_str}  Operand:")
+            self.pretty_print(ast.exp, indent + 2)
+
+        elif isinstance(ast, AssignmentNode):
+            print(
+                f"{indent_str}Assignment: {ast.type if hasattr(ast, 'type') else '='}"
+            )
+            print(f"{indent_str}  Left:")
+            self.pretty_print(ast.lvalue, indent + 2)
+            print(f"{indent_str}  Right:")
+            self.pretty_print(ast.rvalue, indent + 2)
+
+        elif isinstance(ast, ConditionalNode):
+            print(f"{indent_str}Conditional (Ternary):")
+            print(f"{indent_str}  Condition:")
+            self.pretty_print(ast.condition, indent + 2)
+            print(f"{indent_str}  Then:")
+            self.pretty_print(ast.then, indent + 2)
+            print(f"{indent_str}  Else:")
+            self.pretty_print(ast.else_, indent + 2)
+
+        elif isinstance(ast, list):
+            print(f"{indent_str}List:")
+            for item in ast:
+                self.pretty_print(item, indent + 2)
+
+        elif ast is None:
+            print(f"{indent_str}None")
+
+        else:
+            print(f"{indent_str}Unknown Node Type: {type(ast).__name__}")

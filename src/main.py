@@ -3,7 +3,7 @@
 import click
 from Lexer import Lexer
 from SemanticAnalysis import SemanticAnalysis
-from parser.Parser import Parser, pretty_print
+from parser.Parser import Parser
 from tacky.Tacky import Tacky
 from assembler.Assembler import AssemblyParser
 import subprocess
@@ -37,7 +37,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         parser = Parser(tokens, debug)
         ast = parser.parse()
         if debug:
-            pretty_print(ast)
+            parser.pretty_print(ast)
 
     elif validate:
         lexer = Lexer(content, debug)
@@ -48,12 +48,12 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         parser = Parser(tokens, debug)
         ast = parser.parse()
         if debug:
-            pretty_print(ast)
+            parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print(ast)
+            parser.pretty_print(ast)
 
     elif tacky:
         lexer = Lexer(content, debug)
@@ -64,12 +64,12 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         parser = Parser(tokens, debug)
         ast = parser.parse()
         if debug:
-            pretty_print(ast)
+            parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print(ast)
+            parser.pretty_print(ast)
 
         tacky = Tacky(ast, debug)
         ir = tacky.parse(ast)
@@ -85,12 +85,12 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         parser = Parser(tokens, debug)
         ast = parser.parse()
         if debug:
-            pretty_print(ast)
+            parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print()
+            parser.pretty_print(ast)
 
         tacky = Tacky(ast, debug)
         ir = tacky.parse(ast)
@@ -114,12 +114,12 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
         parser = Parser(tokens, debug)
         ast = parser.parse()
         if debug:
-            pretty_print(ast)
+            parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
         ast = semantic.parse(ast)
         if debug:
-            semantic.pretty_print(ast)
+            parser.pretty_print(ast)
 
         tacky = Tacky(ast, debug)
         ir = tacky.parse(ast)
