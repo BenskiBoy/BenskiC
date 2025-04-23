@@ -13,10 +13,12 @@ class AssemblyParser:
         self.instructions = defaultdict(list)
         self.stack_tracker = defaultdict(dict)
 
-    def generate_stack_pntr(self, pseudo_name: str, function_name: str = "") -> int:
+    def generate_stack_pntr(
+        self, pseudo_name: str, function_name: str = "", mem_size: int = 4
+    ) -> int:
         if function_name not in self.stack_tracker.keys():
             self.stack_tracker[function_name][pseudo_name] = (
-                self.get_function_stack_size(function_name)
+                self.get_function_stack_size(function_name, mem_size)
             )  # if function name doesn't exist, neitgher will pseudoname
             return self.stack_tracker[function_name][pseudo_name]
         else:
@@ -24,12 +26,12 @@ class AssemblyParser:
                 return self.stack_tracker[function_name][pseudo_name]
             else:
                 self.stack_tracker[function_name][pseudo_name] = (
-                    self.get_function_stack_size(function_name) - 4
+                    self.get_function_stack_size(function_name, mem_size) - mem_size
                 )
             return self.stack_tracker[function_name][pseudo_name]
 
-    def get_function_stack_size(self, function_name: str) -> int:
-        max_size = -4
+    def get_function_stack_size(self, function_name: str, mem_size: int = 4) -> int:
+        max_size = -mem_size
         for pseudo_name in self.stack_tracker[function_name].keys():
             if self.stack_tracker[function_name][pseudo_name] < max_size:
                 max_size = self.stack_tracker[function_name][pseudo_name]
@@ -419,33 +421,52 @@ class AssemblyParser:
                             )
         return instructions
 
-    def parse(self, prog: IRProgramNode):
+    def parse(self, prog: IRProgramNode, symbol_table: dict):
+        self.symbol_table = symbol_table
+
         self.instructions["__PROGRAM__"].append(Program(self.program_name))
 
-        for i, tack in enumerate(prog.function_definitions):
-            self.instructions[tack.identifier].append(Function(tack.identifier))
-            current_func_identifier = tack.identifier
-            self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
-            for j, tacky in enumerate(tack.body):
-                if tacky:
-                    self.parse_body(current_func_identifier, tacky)
+        for i, function in enumerate(prog.function_definitions):
+            self.instructions[function.identifier] = []
+            self.parse_function(function)
 
-            self.instructions = self.place_stack(self.instructions)
-            self.instructions = self.set_stack_allocation(self.instructions)
-            self.instructions = self.fix_instructions(self.instructions)
+        self.instructions = self.place_stack(self.instructions)
+        self.instructions = self.set_stack_allocation(self.instructions)
+        self.instructions = self.fix_instructions(self.instructions)
 
         return self.instructions
 
+    def parse_function(self, function: IRFunctionNode):
+
+        if not self.symbol_table[function.identifier].defined:
+            return
+        self.instructions[function.identifier].append(Function(function.identifier))
+        current_func_identifier = function.identifier
+
+        self.instructions["__PROGRAM__"][0].globalls.append(function.identifier)
+
+        for i, param in enumerate(function.params[0:6]):
+            self.instructions[current_func_identifier].append(
+                InstructionMov(
+                    FunctionRegOrder[i](),
+                    OperandPseudo(param),
+                )
+            )
+        if len(function.params) > 6:
+            stack_offset = 16
+            for i, param in enumerate(function.params[6:]):
+                self.instructions[current_func_identifier].append(
+                    InstructionMov(
+                        OperandStack(stack_offset),
+                        OperandPseudo(param),
+                    )
+                )
+                stack_offset += 8
+        for j, body in enumerate(function.body):
+            if body:
+                self.parse_body(current_func_identifier, body)
+
     def parse_body(self, current_func_identifier, tack: list[IRNode]):
-
-        # if isinstance(tack, IRProgramNode):
-        # self.instructions["__PROGRAM__"].append(Program(self.program_name))
-
-        # if isinstance(tack, IRFunctionNode):
-
-        #     self.instructions[tack.identifier].append(Function(tack.identifier))
-        #     current_func_identifier = tack.identifier
-        #     self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
 
         if isinstance(tack, IRReturnNode):
             self.instructions[current_func_identifier].extend(self.parse_return(tack))
@@ -492,6 +513,58 @@ class AssemblyParser:
 
         elif isinstance(tack, IRVarNode):
             pass
+
+        elif isinstance(tack, IRFunctionCallNode):
+            register_args = tack.sources[0:6]
+            stack_args = tack.sources[6:]
+            if len(stack_args) % 2 != 0:
+                stack_padding = 8
+            else:
+                stack_padding = 0
+            if stack_padding != 0:
+                self.instructions[current_func_identifier].append(
+                    InstructionAllocateStack(stack_padding)
+                )
+
+            for i, arg in enumerate(register_args):
+                r = FunctionRegOrder[i]()
+                assembly_arg = self._parse_operand(arg)
+                self.instructions[current_func_identifier].append(
+                    InstructionMov(assembly_arg, r)
+                )
+
+            for i, tacky_arg in enumerate(reversed(stack_args)):
+                assembly_arg = self._parse_operand(tacky_arg)
+                if isinstance(assembly_arg, Reg) or isinstance(
+                    assembly_arg, OperandImmediate
+                ):
+                    self.instructions[current_func_identifier].append(
+                        InstructionPush(assembly_arg)
+                    )
+                else:
+                    self.instructions[current_func_identifier].append(
+                        InstructionMov(assembly_arg, RegAX())
+                    )
+                    self.instructions[current_func_identifier].append(
+                        InstructionPush(RegAX("8_byte"))
+                    )
+
+            self.instructions[current_func_identifier].append(
+                InstructionCall(
+                    tack.identifier, self.symbol_table[tack.identifier].defined
+                )
+            )
+
+            bytes_to_remove = 8 * len(stack_args) + stack_padding
+            if bytes_to_remove != 0:
+                self.instructions[current_func_identifier].append(
+                    InstructionDeallocateStack(bytes_to_remove)
+                )
+            self.instructions[current_func_identifier].append(
+                InstructionMov(RegAX(), self._parse_operand(tack.dst))
+            )
+
+            foo = 1
 
         elif tack is None:
             pass

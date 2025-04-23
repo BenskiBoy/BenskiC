@@ -17,8 +17,9 @@ import subprocess
 @click.option("--tacky", is_flag=True, help="Tacky the input file")
 @click.option("--codegen", is_flag=True, help="Generate the AST")
 @click.option("-s", is_flag=True, help="Generate assembly")
+@click.option("-c", is_flag=True, help="Generate assembly")
 @click.option("--debug", is_flag=True, help="Debug")
-def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
+def main(input_file, lex, parse, validate, tacky, codegen, s, c, debug):
 
     content = input_file.read()
 
@@ -51,7 +52,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
-        ast = semantic.parse(ast)
+        ast, symbol_table = semantic.parse(ast)
         if debug:
             parser.pretty_print(ast)
 
@@ -67,7 +68,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
-        ast = semantic.parse(ast)
+        ast, symbol_table = semantic.parse(ast)
         if debug:
             parser.pretty_print(ast)
 
@@ -88,7 +89,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
-        ast = semantic.parse(ast)
+        ast, symbol_table = semantic.parse(ast)
         if debug:
             parser.pretty_print(ast)
 
@@ -98,7 +99,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             tacky.pretty_print(ir)
 
         assm = AssemblyParser(input_file.name.replace(".c", ".s"))
-        assm.parse(ir)
+        assm.parse(ir, symbol_table)
         if debug:
             assm.pretty_print()
 
@@ -117,7 +118,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             parser.pretty_print(ast)
 
         semantic = SemanticAnalysis()
-        ast = semantic.parse(ast)
+        ast, symbol_table = semantic.parse(ast)
         if debug:
             parser.pretty_print(ast)
 
@@ -127,7 +128,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             tacky.pretty_print(ir)
 
         assm = AssemblyParser(input_file.name.replace(".c", ".s"))
-        assm.parse(ir)
+        assm.parse(ir, symbol_table)
 
         if debug:
             assm.pretty_print()
@@ -137,6 +138,44 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             f.write(content)
         if debug:
             print(content)
+
+    elif c:
+        lexer = Lexer(content, debug)
+        tokens = lexer.lex()
+        if debug:
+            print(str(lexer))
+
+        parser = Parser(tokens, debug)
+        ast = parser.parse()
+        if debug:
+            parser.pretty_print(ast)
+
+        semantic = SemanticAnalysis()
+        ast, symbol_table = semantic.parse(ast)
+        if debug:
+            parser.pretty_print(ast)
+
+        tacky = Tacky(ast, debug)
+        ir = tacky.parse(ast)
+        if debug:
+            tacky.pretty_print(ir)
+
+        assm = AssemblyParser(input_file.name.replace(".c", ".s"))
+        assm.parse(ir, symbol_table)
+
+        if debug:
+            assm.pretty_print()
+
+        with open(input_file.name.replace(".c", ".s"), "w") as f:
+            content = assm.generate()
+            f.write(content)
+        if debug:
+            print(content)
+
+        output_file = input_file.name.replace(".c", "")
+        subprocess.run(
+            ["gcc", "-c", input_file.name.replace(".c", ".s"), "-o", output_file + ".o"]
+        )
 
     else:
         lexer = Lexer(content, debug)
@@ -150,7 +189,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             pretty_print(ast)
 
         semantic = SemanticAnalysis()
-        ast = semantic.parse(ast)
+        ast, symbol_table = semantic.parse(ast)
         if debug:
             semantic.pretty_print()
 
@@ -160,7 +199,7 @@ def main(input_file, lex, parse, validate, tacky, codegen, s, debug):
             tacky.pretty_print(ir)
 
         assm = AssemblyParser(input_file.name.replace(".c", ".s"))
-        assm.parse(ir)
+        assm.parse(ir, symbol_table)
         with open(input_file.name.replace(".c", ".s"), "w") as f:
             content = assm.generate()
             f.write(content)

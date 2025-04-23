@@ -44,7 +44,7 @@ class SemanticAnalysis:
         self.identifier_map = defaultdict(dict)
         self.identifier_map_stack = []
         self.previous_identifier_map = {}
-        self.symbol_tree = {}
+        self.symbol_table = {}
         self.semantic_analysis_within_function = False
 
         self.label_declarations = (
@@ -110,7 +110,7 @@ class SemanticAnalysis:
 
         ast = self.resolve_control_flow(ast)
 
-        return ast
+        return ast, self.symbol_table
 
     def typecheck_parse(self, ast: ProgramNode) -> ProgramNode:
         for i, function in enumerate(ast.functions):
@@ -401,7 +401,7 @@ class SemanticAnalysis:
     def typecheck_exp(self, expression: ExpressionNode):
         print(f"Typechecking expression: {expression}")
         if isinstance(expression, FunctionCallNode):
-            f_type = self.symbol_tree[expression.identifier]
+            f_type = self.symbol_table[expression.identifier]
             if isinstance(f_type, IntSymbolType):
                 raise Exception("Variable used as function name")
             elif f_type.param_count != len(expression.arguments):
@@ -411,7 +411,7 @@ class SemanticAnalysis:
             for arg in expression.arguments:
                 self.typecheck_exp(arg)
         elif isinstance(expression, VarNode):
-            if self.symbol_tree[expression.identifier].type != "INT":
+            if self.symbol_table[expression.identifier].type != "INT":
                 raise Exception("Function name used as variable")
         elif isinstance(expression, AssignmentNode):
             self.typecheck_exp(expression.rvalue)
@@ -429,7 +429,7 @@ class SemanticAnalysis:
             pass
 
     def typecheck_variable_declaration(self, declaration: VariableDeclarationNode):
-        self.symbol_tree[declaration.identifier] = IntSymbolType()
+        self.symbol_table[declaration.identifier] = IntSymbolType()
         if declaration.exp:
             self.typecheck_exp(declaration.exp)
 
@@ -437,8 +437,8 @@ class SemanticAnalysis:
         function_type = FunctionSymbolType(len(declaration.params))
         has_body = declaration.body is not None
         already_defined = False
-        if declaration.identifier in self.symbol_tree:
-            old_declaration = self.symbol_tree[declaration.identifier]
+        if declaration.identifier in self.symbol_table:
+            old_declaration = self.symbol_table[declaration.identifier]
             if old_declaration != function_type:
                 raise Exception(
                     f"Function name '{declaration.identifier}' used as variable."
@@ -446,13 +446,13 @@ class SemanticAnalysis:
             already_defined = old_declaration.defined
             if already_defined and has_body:
                 raise Exception(f"Function '{declaration.identifier}' already defined.")
-        self.symbol_tree[declaration.identifier] = FunctionSymbolType(
+        self.symbol_table[declaration.identifier] = FunctionSymbolType(
             len(declaration.params), already_defined or has_body
         )
 
         if has_body:
             for param in declaration.params:
-                self.symbol_tree[param] = IntSymbolType()
+                self.symbol_table[param] = IntSymbolType()
             self.typecheck_block(declaration.body)
 
     def typecheck_block(self, block: BlockNode):

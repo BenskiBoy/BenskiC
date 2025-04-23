@@ -54,7 +54,7 @@ class Tacky:
         elif isinstance(ast, FunctionDeclarationNode):
             if ast.body is not None:
                 self.emit_ir(ast.body, instructions)
-            instructions.append(IRReturnNode(IRConstantNode(0)))
+                instructions.append(IRReturnNode(IRConstantNode(0)))
             return IRFunctionNode(ast.identifier, ast.params, instructions)
 
         elif isinstance(ast, BlockNode):
@@ -67,7 +67,7 @@ class Tacky:
             args = []
             for arg in ast.arguments:
                 args.append(self.emit_ir(arg, instructions))
-            dst = self.make_temporary_variable()
+            dst = IRVarNode(self.make_temporary_variable())
             instructions.append(IRFunctionCallNode(ast.identifier, args, dst))
             return dst
 

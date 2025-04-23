@@ -8,7 +8,7 @@ class Program:
 
     def _gen_globals(self):
         res = ""
-        for globall in self.globalls:
+        for globall in list(set(self.globalls)):
             res += f"   .global {globall}\n"
         return res
 
@@ -226,66 +226,73 @@ class ConditionCodeGreaterOrEqual(ConditionCode):
 
 ###########################################
 
+from . import register_lookup
+
 
 class Reg:
-    def __init__(self):
-        pass
+    def __init__(self, name: str, version: str = "4_byte"):
+        self.name = name
+        self.version = version
+
+    def __str__(self):
+        return f"{register_lookup.reg_lookup[self.name][self.version]}"
+
+    def _repr_single_byte(self):
+        return f"{register_lookup.reg_lookup[self.name]["1_byte"]}"
+
+    def _repr_eight_byte(self):
+        return f"{register_lookup.reg_lookup[self.name]["8_byte"]}"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}"
+        return f"Reg({self.name})"
 
 
 class RegAX(Reg):
-    def __init__(self):
-        super().__init__()
-
-    def __str__(self):
-        return "%eax"
-
-    def _repr_single_byte(self):
-        return "%al"
-
-
-class RegR10(Reg):
-    def __init__(self):
-        super().__init__()
-
-    def __str__(self):
-        return "%r10d"
-
-    def _repr_single_byte(self):
-        return "%r10b"
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("AX", version=version)
 
 
 class RegDX(Reg):
-    def __init__(self):
-        super().__init__()
-
-    def __str__(self):
-        return "%edx"
-
-    def _repr_single_byte(self):
-        return "%dl"
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("DX", version=version)
 
 
 class RegCX(Reg):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("CX", version=version)
 
-    def __str__(self):
-        return "%ecx"
+
+class RegDI(Reg):
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("DI", version=version)
+
+
+class RegSI(Reg):
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("SI", version=version)
+
+
+class RegR8(Reg):
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("R8", version=version)
+
+
+class RegR9(Reg):
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("R9", version=version)
+
+
+class RegR10(Reg):
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("R10", version=version)
 
 
 class RegR11(Reg):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, version: str = "4_byte"):
+        super().__init__("R11", version=version)
 
-    def __str__(self):
-        return "%r11d"
 
-    def _repr_single_byte(self):
-        return "%r11b"
-
+FunctionRegOrder = [RegDI, RegSI, RegDX, RegCX, RegR8, RegR9]
 
 ###########################################
 
@@ -351,6 +358,11 @@ class Instruction:
 class InstructionMov(Instruction):
     def __init__(self, src: Operand, dst: Operand, comment: str = "") -> None:
         super().__init__("movl", src, dst, comment=comment)
+
+        if not src:
+            raise ValueError("src operand cannot be None")
+        if not dst:
+            raise ValueError("dst operand cannot be None")
 
     def __str__(self):
         return f"   movl   {self.arg_1}, {self.arg_2} {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
@@ -450,10 +462,38 @@ class InstructionUnary(Instruction):
 
 class InstructionAllocateStack(Instruction):
     def __init__(self, value, comment: str = "") -> None:
-        super().__init__("Unary", value, comment=comment)
+        super().__init__("AllocateStack", value, comment=comment)
 
     def __str__(self):
-        return f"   subq   ${self.arg_1}, %rsp {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
+        return f"   subq   ${-self.arg_1}, %rsp {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
+
+
+class InstructionDeallocateStack(Instruction):
+    def __init__(self, value, comment: str = "") -> None:
+        super().__init__("DeallocateStack", value, comment=comment)
+
+    def __str__(self):
+        return f"   addq   ${self.arg_1}, %rsp {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
+
+
+class InstructionPush(Instruction):
+    def __init__(self, operand, comment: str = "") -> None:
+        super().__init__("Push", operand, comment=comment)
+
+    def __str__(self):
+        return f"   pushq   {self.arg_1} {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
+
+
+class InstructionCall(Instruction):
+    def __init__(
+        self, identifier, current_translation_unit: bool = False, comment: str = ""
+    ) -> None:
+        super().__init__("call", identifier, comment=comment)
+        self.current_translation_unit = current_translation_unit
+
+    def __str__(self):
+        plt = "@PLT" if not self.current_translation_unit else ""
+        return f"   call   {self.arg_1}{plt} {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
 
 
 class InstructionRet(Instruction):

@@ -36,8 +36,8 @@ class Parser:
             function_params[i] = param
 
         tokens, block_node = self.parse_block(tokens)
-        if block_node.children == []:
-            block_node = None
+        # if block_node.children == []:
+        # block_node = BlockNode([])
 
         return tokens, FunctionDeclarationNode(name, function_params, block_node)
 
@@ -105,7 +105,7 @@ class Parser:
 
         if tokens[0] == Token("SEMICOLON"):
             tokens = tokens[1:]
-            return tokens, BlockNode(block_items)
+            return tokens, None
 
         tokens, _ = self.expect(Token("OPEN_BRACE"), tokens)
 

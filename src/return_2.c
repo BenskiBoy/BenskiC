@@ -68,55 +68,63 @@
 // int a(int a) {
 //     return a * 2;
 // }
-#ifdef SUPPRESS_WARNINGS
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-/* Test that naming scheme does not result in conflicting variable names after alpha conversion */
+// int simple(int param) {
+//     return param * 2;
+// }
+
+// int foo(int a, int b);
+
+// int main(void) {
+//     return foo(2, 1);
+// }
+
+// /* Multiple declarations of a function
+//  * can use different parameter names
+//  */
+// int foo(int x, int y){
+//     return x - y;
+// }
+// int lots_of_args(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l, int m, int n, int o) {
+//     return l + o;
+// }
+
+// int main(void) {
+//     int ret = 0;
+//     // for (int i = 0; i < 1; i = i + 1) {
+//     //     ret = lots_of_args(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ret, 13, 14, 15);
+//     // }
+//     ret = lots_of_args(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ret, 13, 14, 15);
+//     ret = lots_of_args(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ret, 13, 14, 15);
+//     ret = lots_of_args(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ret, 13, 14, 15);
+
+
+//     return ret;
+//     // return ret == 150000000;
+// }
+
+int fib(int n) {
+    if (n == 0 || n == 1) {
+        return n;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
 
 int main(void) {
-    int a; // a0
-    int result;
-    int a1 = 1; // a10
-    {
-        int a = 2; //a1
-        int a1 = 2; // a11
-        {
-            int a; // a2
-            {
-                int a; // a3
-                {
-                    int a; // a4
-                    {
-                        int a; // a5
-                        {
-                            int a; // a6
-                            {
-                                int a; // a7
-                                {
-                                    int a; // a8
-                                    {
-                                        int a; // a9
-                                        {
-                                            int a = 20; // a10
-                                            result = a;
-                                            {
-                                                int a; // a11
-                                                a = 5;
-                                                result = result + a;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        result = result + a1; //a1. 1 (2)
-    }
-    return result + a1; // a1.0 (1)
+    int n = 6;
+    return fib(n);
 }
+
+// int main(void) {
+//     int a = 2;
+//     int b = 3;
+//     int c = a+b;
+//     return c;
+// }
+
+// int main(void) {
+//     return simple(1);
+// }
 // int main(void) {
 //     int a = 2;
 //     int b;
@@ -127,3 +135,5 @@ int main(void) {
 //     }
 //     return b == 8 && a == -4;
 // }
+
+
