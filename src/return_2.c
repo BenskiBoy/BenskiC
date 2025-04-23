@@ -38,18 +38,27 @@
 //     return a * 2;
 // }
 
-int foo(int a, int b);
+// int main(void) {
+//     int a = 10;
+//     for(int i = 0; i < 10; i++) {
+//         int a = 5;
+//         a++;
+//     }
+//     return a;
+// }
 
-int main(void) {
-    return foo(2, 1);
-}
+// int foo(int a, int b);
 
-/* Multiple declarations of a function
- * can use different parameter names
- */
-int foo(int x, int y){
-    return x - y;
-}
+// int main(void) {
+//     return foo(2, 1);
+// }
+
+// /* Multiple declarations of a function
+//  * can use different parameter names
+//  */
+// int foo(int x, int y){
+//     return x - y;
+// }
 // int main(void) {
 //     int var0;
 //     var0 = 2;
@@ -59,11 +68,55 @@ int foo(int x, int y){
 // int a(int a) {
 //     return a * 2;
 // }
+#ifdef SUPPRESS_WARNINGS
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+/* Test that naming scheme does not result in conflicting variable names after alpha conversion */
 
-// int main(void) {
-//     return a(1);
-// }
-
+int main(void) {
+    int a; // a0
+    int result;
+    int a1 = 1; // a10
+    {
+        int a = 2; //a1
+        int a1 = 2; // a11
+        {
+            int a; // a2
+            {
+                int a; // a3
+                {
+                    int a; // a4
+                    {
+                        int a; // a5
+                        {
+                            int a; // a6
+                            {
+                                int a; // a7
+                                {
+                                    int a; // a8
+                                    {
+                                        int a; // a9
+                                        {
+                                            int a = 20; // a10
+                                            result = a;
+                                            {
+                                                int a; // a11
+                                                a = 5;
+                                                result = result + a;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result = result + a1; //a1. 1 (2)
+    }
+    return result + a1; // a1.0 (1)
+}
 // int main(void) {
 //     int a = 2;
 //     int b;

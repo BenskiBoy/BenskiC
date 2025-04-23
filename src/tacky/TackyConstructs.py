@@ -112,6 +112,24 @@ class IRLabelNode(IRNode):
         return f"""IRLabelNode({self.identifier})"""
 
 
+class IRFunctionCallNode(IRNode):
+    def __init__(
+        self,
+        identifier: str,
+        args: list[IRConstantNode | IRVarNode],
+        dst: IRConstantNode | IRVarNode,
+    ) -> None:
+        super().__init__("FunctionCall", args, dst)
+        self.identifier = identifier
+        self.dst = dst
+
+    def __str__(self) -> str:
+        return f"""FunctionCallNode({self.identifier}, {self.sources}, {self.dst})"""
+
+    def __repr__(self) -> str:
+        return f"""FunctionCallNode({self.identifier}, {self.sources}, {self.dst})"""
+
+
 ##### Unary
 class IRUnaryOperator(Enum):
     COMPLEMENT = "Complement"
@@ -226,27 +244,30 @@ class IRBinaryNode(IRNode):
         return f"""IRBinaryNode({self.op}, {self.sources[0]}, {self.sources[1]}, {self.dst})"""
 
 
+class IRFunctionNode(IRNode):
+    def __init__(self, identifier: str, params: list[str], body: list[IRNode]) -> None:
+        super().__init__("Function", [], None)
+        self.identifier = identifier
+        self.params = params
+        self.body = body
+
+    def __str__(self) -> str:
+        return f"""IRFunctionNode({self.identifier}, {self.params})"""
+
+    def __repr__(self) -> str:
+        return f"""IRFunctionNode({self.identifier}, {self.params})"""
+
+
 class IRProgramNode(IRNode):
     def __init__(
         self,
+        function_definitions: list[IRFunctionNode],
     ) -> None:
         super().__init__("PROGRAM", None, [])
+        self.function_definitions = function_definitions
 
     def __str__(self) -> str:
-        return f"""IRProgramNode()"""
+        return f"""IRProgramNode({self.function_definitions})"""
 
     def __repr__(self) -> str:
-        return f"""IRProgramNode()"""
-
-
-class IRFunctionNode(IRNode):
-    def __init__(self, identifier: str, return_type) -> None:
-        super().__init__("Function", [], None)
-        self.identifier = identifier
-        self.return_type = return_type
-
-    def __str__(self) -> str:
-        return f"""IRFunctionNode({self.identifier}, {self.return_type})"""
-
-    def __repr__(self) -> str:
-        return f"""IRFunctionNode({self.identifier}, {self.return_type})"""
+        return f"""IRProgramNode({self.function_definitions})"""

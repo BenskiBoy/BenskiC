@@ -6,63 +6,33 @@ main:
    movq    %rsp, %rbp
 
    subq   $-40, %rsp 
-   movl   $100, -4(%rbp) 
-   movl   $0, -8(%rbp) 
-.L_CONTINUE_WHILE_LOOP_0_: 
-   movl   -4(%rbp), %r10d 
-   movl   %r10d, -12(%rbp) 
-   movl   -4(%rbp), %r10d #Performing SUBTRACT
-   movl   %r10d, -4(%rbp) 
-   subl   $1, -4(%rbp) 
-   movl   -12(%rbp), %r10d 
-   movl   %r10d, -16(%rbp) 
-   cmpl   $0, -16(%rbp) 
-   je   .L_BREAK_WHILE_LOOP_0_ 
-   movl   -8(%rbp), %r10d 
+   movl   $1, -4(%rbp) 
+   movl   $2, -8(%rbp) 
+   movl   $2, -12(%rbp) 
+   movl   $20, -16(%rbp) 
+   movl   -16(%rbp), %r10d 
    movl   %r10d, -20(%rbp) 
-   movl   -8(%rbp), %r10d #Performing ADD
-   movl   %r10d, -8(%rbp) 
-   addl   $1, -8(%rbp) 
-   jmp    .L_CONTINUE_WHILE_LOOP_0_ 
-.L_BREAK_WHILE_LOOP_0_: 
-   cmpl   $100, -8(%rbp) 
-   movl   $0, -24(%rbp) 
-   setne   -24(%rbp) 
-   cmpl   $0, -24(%rbp) 
-   je   .L_IF_END_0_ 
-   movl   $0, %eax 
-   movq    %rbp, %rsp
-   popq    %rbp
-   ret
-.L_IF_END_0_: 
-   movl   $100, -4(%rbp) 
-   movl   $0, -8(%rbp) 
-.L_CONTINUE_WHILE_LOOP_1_: 
-   movl   -4(%rbp), %r10d #Performing SUBTRACT
-   movl   %r10d, -4(%rbp) 
-   subl   $1, -4(%rbp) 
-   movl   -4(%rbp), %r10d 
+   movl   $5, -24(%rbp) 
+   movl   -20(%rbp), %r10d #Performing ADD
    movl   %r10d, -28(%rbp) 
-   cmpl   $0, -28(%rbp) 
-   je   .L_BREAK_WHILE_LOOP_1_ 
-   movl   -8(%rbp), %r10d 
+   movl   -28(%rbp), %r10d 
+   addl   -24(%rbp), %r10d 
+   movl   %r10d, -28(%rbp) 
+   movl   -28(%rbp), %r10d 
+   movl   %r10d, -20(%rbp) 
+   movl   -20(%rbp), %r10d #Performing ADD
    movl   %r10d, -32(%rbp) 
-   movl   -8(%rbp), %r10d #Performing ADD
-   movl   %r10d, -8(%rbp) 
-   addl   $1, -8(%rbp) 
-   jmp    .L_CONTINUE_WHILE_LOOP_1_ 
-.L_BREAK_WHILE_LOOP_1_: 
-   cmpl   $99, -8(%rbp) 
-   movl   $0, -36(%rbp) 
-   setne   -36(%rbp) 
-   cmpl   $0, -36(%rbp) 
-   je   .L_IF_END_1_ 
-   movl   $0, %eax 
-   movq    %rbp, %rsp
-   popq    %rbp
-   ret
-.L_IF_END_1_: 
-   movl   $1, %eax 
+   movl   -32(%rbp), %r10d 
+   addl   -12(%rbp), %r10d 
+   movl   %r10d, -32(%rbp) 
+   movl   -32(%rbp), %r10d 
+   movl   %r10d, -20(%rbp) 
+   movl   -20(%rbp), %r10d #Performing ADD
+   movl   %r10d, -36(%rbp) 
+   movl   -36(%rbp), %r10d 
+   addl   -4(%rbp), %r10d 
+   movl   %r10d, -36(%rbp) 
+   movl   -36(%rbp), %eax 
    movq    %rbp, %rsp
    popq    %rbp
    ret

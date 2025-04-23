@@ -419,80 +419,84 @@ class AssemblyParser:
                             )
         return instructions
 
-    def parse(self, tacky: list[IRNode]):
+    def parse(self, prog: IRProgramNode):
+        self.instructions["__PROGRAM__"].append(Program(self.program_name))
 
-        current_func_identifier = ""
-        for i, tack in enumerate(tacky):
+        for i, tack in enumerate(prog.function_definitions):
+            self.instructions[tack.identifier].append(Function(tack.identifier))
+            current_func_identifier = tack.identifier
+            self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
+            for j, tacky in enumerate(tack.body):
+                if tacky:
+                    self.parse_body(current_func_identifier, tacky)
 
-            if isinstance(tack, IRProgramNode):
-                self.instructions["__PROGRAM__"].append(Program(self.program_name))
+            self.instructions = self.place_stack(self.instructions)
+            self.instructions = self.set_stack_allocation(self.instructions)
+            self.instructions = self.fix_instructions(self.instructions)
 
-            elif isinstance(tack, IRFunctionNode):
+        return self.instructions
 
-                self.instructions[tack.identifier].append(Function(tack.identifier))
-                current_func_identifier = tack.identifier
-                self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
+    def parse_body(self, current_func_identifier, tack: list[IRNode]):
 
-            elif isinstance(tack, IRReturnNode):
-                self.instructions[current_func_identifier].extend(
-                    self.parse_return(tack)
+        # if isinstance(tack, IRProgramNode):
+        # self.instructions["__PROGRAM__"].append(Program(self.program_name))
+
+        # if isinstance(tack, IRFunctionNode):
+
+        #     self.instructions[tack.identifier].append(Function(tack.identifier))
+        #     current_func_identifier = tack.identifier
+        #     self.instructions["__PROGRAM__"][0].globalls.append(tack.identifier)
+
+        if isinstance(tack, IRReturnNode):
+            self.instructions[current_func_identifier].extend(self.parse_return(tack))
+
+        elif isinstance(tack, IRUnaryNode):
+            self.instructions[current_func_identifier].extend(self.parse_unary(tack))
+
+        elif isinstance(tack, IRBinaryNode):
+            self.instructions[current_func_identifier].extend(self.parse_binary(tack))
+
+        elif isinstance(tack, IRJumpIfZeroNode):
+            self.instructions[current_func_identifier].extend(
+                [
+                    InstructionCmp(
+                        OperandImmediate(0), self._parse_operand(tack.condition)
+                    ),
+                    InstructionJmpCC(ConditionCodeEqual(), tack.target),
+                ]
+            )
+        elif isinstance(tack, IRJumpIfNotZeroNode):
+            self.instructions[current_func_identifier].extend(
+                [
+                    InstructionCmp(
+                        OperandImmediate(0), self._parse_operand(tack.condition)
+                    ),
+                    InstructionJmpCC(ConditionCodeNotEqual(), tack.target),
+                ]
+            )
+        elif isinstance(tack, IRCopyNode):
+            self.instructions[current_func_identifier].append(
+                InstructionMov(
+                    self._parse_operand(tack.sources[0]),
+                    self._parse_operand(tack.dst),
                 )
+            )
+        elif isinstance(tack, IRJumpNode):
+            self.instructions[current_func_identifier].append(
+                InstructionJmp(tack.target)
+            )
+        elif isinstance(tack, IRLabelNode):
+            self.instructions[current_func_identifier].append(
+                InstructionLabel(tack.identifier)
+            )
 
-            elif isinstance(tack, IRUnaryNode):
-                self.instructions[current_func_identifier].extend(
-                    self.parse_unary(tack)
-                )
+        elif isinstance(tack, IRVarNode):
+            pass
 
-            elif isinstance(tack, IRBinaryNode):
-                self.instructions[current_func_identifier].extend(
-                    self.parse_binary(tack)
-                )
-
-            elif isinstance(tack, IRJumpIfZeroNode):
-                self.instructions[current_func_identifier].extend(
-                    [
-                        InstructionCmp(
-                            OperandImmediate(0), self._parse_operand(tack.condition)
-                        ),
-                        InstructionJmpCC(ConditionCodeEqual(), tack.target),
-                    ]
-                )
-            elif isinstance(tack, IRJumpIfNotZeroNode):
-                self.instructions[current_func_identifier].extend(
-                    [
-                        InstructionCmp(
-                            OperandImmediate(0), self._parse_operand(tack.condition)
-                        ),
-                        InstructionJmpCC(ConditionCodeNotEqual(), tack.target),
-                    ]
-                )
-            elif isinstance(tack, IRCopyNode):
-                self.instructions[current_func_identifier].append(
-                    InstructionMov(
-                        self._parse_operand(tack.sources[0]),
-                        self._parse_operand(tack.dst),
-                    )
-                )
-            elif isinstance(tack, IRJumpNode):
-                self.instructions[current_func_identifier].append(
-                    InstructionJmp(tack.target)
-                )
-            elif isinstance(tack, IRLabelNode):
-                self.instructions[current_func_identifier].append(
-                    InstructionLabel(tack.identifier)
-                )
-
-            elif isinstance(tack, IRVarNode):
-                pass
-
-            elif tack is None:
-                pass
-            else:
-                raise Exception(f"Unknown IR {tack}")
-
-        self.instructions = self.place_stack(self.instructions)
-        self.instructions = self.set_stack_allocation(self.instructions)
-        self.instructions = self.fix_instructions(self.instructions)
+        elif tack is None:
+            pass
+        else:
+            raise Exception(f"Unknown IR {tack}")
 
         return self.instructions
 

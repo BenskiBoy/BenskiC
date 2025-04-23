@@ -42,6 +42,7 @@ class SemanticAnalysis:
     def __init__(self):
         self.scope_level = 0
         self.identifier_map = defaultdict(dict)
+        self.identifier_map_stack = []
         self.previous_identifier_map = {}
         self.symbol_tree = {}
         self.semantic_analysis_within_function = False
@@ -56,18 +57,17 @@ class SemanticAnalysis:
     def enter_scope(self):
         # Create a new scope
         self.scope_level += 1
-        self.previous_identifier_map = copy.deepcopy(self.identifier_map)
-
+        # self.previous_identifier_map = copy.deepcopy(self.identifier_map)
+        self.identifier_map_stack.append(copy.deepcopy(self.identifier_map))
         for identifier in self.identifier_map:
             self.identifier_map[identifier]["from_current_scope"] = False
 
     def exit_scope(self):
         # Remove the current scope
 
-        self.identifier_map = copy.deepcopy(self.previous_identifier_map)
-
         if self.scope_level > 0:
             self.scope_level -= 1
+            self.identifier_map = copy.deepcopy(self.identifier_map_stack.pop())
         else:
             raise Exception("No scope to exit.")
 
@@ -82,7 +82,7 @@ class SemanticAnalysis:
                 )
 
         # Create unique name
-        unique_name = f"{identifier}.{self.scope_level}"
+        unique_name = f"{identifier}.{self.scope_level-1}"
 
         # Add to current scope
         self.identifier_map[identifier]["new_name"] = unique_name
