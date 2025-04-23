@@ -12,33 +12,101 @@ class Parser:
         self.debug = debug
 
     def parse(self) -> ProgramNode:
-        program_node = ProgramNode()
 
         tokens = self.tokens
+        functions = []
         while tokens:
             tokens, function = self.parse_function(tokens)
-            program_node.functions.append(function)
+            functions.append(function)
+        program_node = ProgramNode(functions)
 
         return program_node
 
-    def parse_function(self, tokens: list[Token]) -> tuple[list[Token], FunctionNode]:
+    def parse_function(
+        self, tokens: list[Token]
+    ) -> tuple[list[Token], FunctionDeclarationNode]:
 
         tokens, _ = self.expect(Token("INT"), tokens)
         return_type = "INT"
         tokens, token = self.expect(Token("IDENTIFIER"), tokens)
         name = token.value
 
-        tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
-
-        tokens, _ = self.expect(Token("VOID"), tokens)
-        tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+        tokens, function_params = self.parse_function_parameter_list(tokens)
+        for i, param in enumerate(function_params):
+            function_params[i] = param
 
         tokens, block_node = self.parse_block(tokens)
+        if block_node.children == []:
+            block_node = None
 
-        return tokens, FunctionNode(return_type, name, block_node)
+        return tokens, FunctionDeclarationNode(name, function_params, block_node)
+
+    def parse_function_parameter_list(
+        self, tokens: list[Token]
+    ) -> tuple[list[Token], list[str]]:
+        parameters = []
+
+        tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+
+        if tokens[0] == Token("VOID"):
+            tokens = tokens[1:]
+            tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+            return tokens, parameters
+
+        while tokens[0] != Token("CLOSE_PAREN"):
+            if tokens[0] == Token("COMMA"):
+                tokens = tokens[1:]
+
+            tokens, _ = self.expect(Token("INT"), tokens)
+            tokens, parameter = self.expect(Token("IDENTIFIER"), tokens)
+            parameters.append(parameter.value)
+
+        tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+        return tokens, parameters
+
+    def parse_argument_list(
+        self, tokens: list[Token]
+    ) -> tuple[list[Token], list[ExpressionNode]]:
+        arguments = []
+
+        tokens, _ = self.expect(Token("OPEN_PAREN"), tokens)
+
+        while tokens[0] != Token("CLOSE_PAREN"):
+
+            if tokens[0] == Token("COMMA"):
+                tokens = tokens[1:]
+
+            tokens, expression = self.parse_expression(tokens)
+            arguments.append(expression)
+
+        tokens, _ = self.expect(Token("CLOSE_PAREN"), tokens)
+        return tokens, arguments
+
+    def parse_variable_declaration(
+        self, tokens: list[Token]
+    ) -> tuple[list[Token], VariableDeclarationNode]:
+        tokens, _ = self.expect(Token("INT"), tokens)
+        tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
+        identifier = identifier.value
+
+        if tokens[0] == Token("EQUAL_ASSIGN"):
+            tokens = tokens[1:]
+            tokens, expression = self.parse_expression(tokens)
+            declaration = VariableDeclarationNode(identifier, expression)
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+        else:
+            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+            declaration = VariableDeclarationNode(identifier, None)
+
+        return tokens, declaration
 
     def parse_block(self, tokens) -> tuple[list[Token], BlockNode]:
         block_items = []
+
+        if tokens[0] == Token("SEMICOLON"):
+            tokens = tokens[1:]
+            return tokens, BlockNode(block_items)
+
         tokens, _ = self.expect(Token("OPEN_BRACE"), tokens)
 
         while tokens[0].type != "CLOSE_BRACE":
@@ -87,7 +155,7 @@ class Parser:
 
             # Parse the initialization statement
             if tokens[0] == Token("INT"):
-                tokens, declaration = self.parse_declaration(tokens)
+                tokens, declaration = self.parse_variable_declaration(tokens)
                 init_statement = InitDeclNode(declaration)
             else:
                 if tokens[0] == Token("SEMICOLON"):
@@ -291,19 +359,14 @@ class Parser:
             return tokens, expression
 
     def parse_declaration(self, tokens) -> tuple[list[Token], DeclarationNode]:
-        tokens, _ = self.expect(Token("INT"), tokens)
-        tokens, identifier = self.expect(Token("IDENTIFIER"), tokens)
-        identifier = identifier.value
-        if tokens[0] == Token("EQUAL_ASSIGN"):
-            tokens = tokens[1:]
-            tokens, expression = self.parse_expression(tokens)
-            declaration = DeclarationNode(identifier, expression)
-            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
+        if tokens[2] == Token("OPEN_PAREN"):
+            # Function declaration
+            tokens, function = self.parse_function(tokens)
+            return tokens, function
         else:
-            tokens, _ = self.expect(Token("SEMICOLON"), tokens)
-            declaration = DeclarationNode(identifier, None)
-
-        return tokens, declaration
+            # Variable declaration
+            tokens, variable_declaration = self.parse_variable_declaration(tokens)
+            return tokens, variable_declaration
 
     def parse_conditional_middle(self, tokens) -> tuple[list[Token], ExpressionNode]:
         tokens, _ = self.expect(Token("QUESTION_MARK"), tokens)
@@ -351,6 +414,8 @@ class Parser:
                 elif isinstance(left, ConstantNode):
                     operator = self.parse_binary_operator(next_token, False)
                 elif isinstance(left, AssignmentNode):
+                    operator = self.parse_binary_operator(next_token, False)
+                elif isinstance(left, FunctionCallNode):
                     operator = self.parse_binary_operator(next_token, False)
                 else:
                     raise Exception(f"Unexpected left operand type {type(left)}")
@@ -405,6 +470,11 @@ class Parser:
                 else:
                     operator = UnaryOperatorNode.DECREMENT
                 return tokens, UnaryNode(VarNode(identifier.value), operator, True)
+
+            elif tokens[0] == Token("OPEN_PAREN"):
+                # Function call
+                tokens, arguments = self.parse_argument_list(tokens)
+                return tokens, FunctionCallNode(identifier.value, arguments)
 
             return tokens, VarNode(identifier.value)
         else:
@@ -522,11 +592,21 @@ class Parser:
             for function in ast.functions:
                 self.pretty_print(function, indent + 1)
 
-        elif isinstance(ast, FunctionNode):
-            print(f"{indent_str}Function: {ast.name}")
-            print(f"{indent_str}Return Type: {ast.return_type}")
-            print(f"{indent_str}Body:")
-            self.pretty_print(ast.body, indent + 1)
+        elif isinstance(ast, FunctionDeclarationNode):
+            if ast.body:
+                print(f"{indent_str}Function: {ast.identifier}")
+                # print(f"{indent_str}Return Type: {ast.return_type}")
+                # print(f"{indent_str}Parameters: {', '.join(str(ast.params)}")\
+                for param in ast.params:
+                    print(f"{indent_str}    Parameter: {param}")
+                print(f"{indent_str}Body:")
+                self.pretty_print(ast.body, indent + 1)
+            else:
+                print(f"{indent_str}Function Declaration: {ast.identifier}")
+                # print(f"{indent_str}Return Type: {ast.return_type}")
+                # print(f"{indent_str}    Parameters: {', '.join(ast.params)}")
+                for param in ast.params:
+                    print(f"{indent_str}    Parameter: {param}")
 
         elif isinstance(ast, BlockNode):
             print(f"{indent_str}Block:")
@@ -682,6 +762,12 @@ class Parser:
             print(f"{indent_str}List:")
             for item in ast:
                 self.pretty_print(item, indent + 2)
+
+        elif isinstance(ast, FunctionCallNode):
+            print(f"{indent_str}Function Call: {ast.identifier}")
+            print(f"{indent_str}  Arguments:")
+            for arg in ast.arguments:
+                self.pretty_print(arg, indent + 2)
 
         elif ast is None:
             print(f"{indent_str}None")

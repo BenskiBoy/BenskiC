@@ -167,18 +167,6 @@ BINARY_TOKENS = [
 ]
 
 
-class ProgramNode:
-    def __init__(self) -> None:
-        self.functions = []
-
-    def repr(self) -> str:
-        return f"PROGRAM({self.functions})"
-
-    def __str__(self) -> str:
-        return f"""
-Program("""
-
-
 class ExpressionNode:
     def __init__(
         self,
@@ -189,20 +177,20 @@ class ExpressionNode:
         return f"EXPRESSION({self.operator})"
 
 
-class ReturnNode:
+class Statement:
+    def __init__(self, child) -> None:
+        self.child = child
+
+    def __repr__(self):
+        return f"STATEMENT({self.child})"
+
+
+class ReturnNode(Statement):
     def __init__(self, exp: ExpressionNode) -> None:
         self.exp = exp
 
     def __repr__(self):
         return f"RETURN({self.exp})"
-
-
-class Statement:
-    def __init__(self, child: ReturnNode | ExpressionNode | None) -> None:
-        self.child = child
-
-    def __repr__(self):
-        return f"STATEMENT({self.child})"
 
 
 class LabeledStatementNode(Statement):
@@ -244,6 +232,24 @@ class BlockNode:
         return f"BLOCK({self.children})"
 
 
+class VariableDeclarationNode(DeclarationNode):
+    def __init__(self, identifier: str, exp: ExpressionNode | None) -> None:
+        super().__init__(identifier, exp)
+
+    def __repr__(self) -> str:
+        return f"VARIABLE_DECLARATION({self.identifier} {self.exp})"
+
+
+class FunctionDeclarationNode(DeclarationNode):
+    def __init__(self, identifier: str, params: list[str], body: BlockNode) -> None:
+        self.identifier = identifier
+        self.params = params
+        self.body = body
+
+    def __repr__(self) -> str:
+        return f"FUNCTION_DECLARATION({self.identifier} {self.params} {self.body})"
+
+
 class CompoundStatementNode(Statement):
     def __init__(self, child: BlockNode) -> None:
         self.child = child
@@ -252,7 +258,7 @@ class CompoundStatementNode(Statement):
         return f"Compound({self.child})"
 
 
-class GotoNode:
+class GotoNode(Statement):
     def __init__(self, label: str) -> None:
         self.label = label
 
@@ -260,7 +266,7 @@ class GotoNode:
         return f"GOTO({self.label})"
 
 
-class IfNode:
+class IfNode(Statement):
     def __init__(
         self, condition: ExpressionNode, then: Statement, else_: Statement = None
     ) -> None:
@@ -272,7 +278,7 @@ class IfNode:
         return f"IF({self.condition}, {self.then}, {self.else_})"
 
 
-class WhileNode:
+class WhileNode(Statement):
     def __init__(
         self, condition: ExpressionNode, body: Statement, label: str = ""
     ) -> None:
@@ -284,7 +290,7 @@ class WhileNode:
         return f"WHILE({self.label} {self.condition}, {self.body})"
 
 
-class DoWhileNode:
+class DoWhileNode(Statement):
     def __init__(
         self, condition: ExpressionNode, body: Statement, label: str = ""
     ) -> None:
@@ -314,11 +320,11 @@ class InitExprNode:
         return f"INIT_EXPR({self.expression})"
 
 
-class ForNode:
+class ForNode(Statement):
     def __init__(
         self,
         body: Statement,
-        init: InitDeclNode | InitExprNode = None,
+        init: VariableDeclarationNode | InitExprNode = None,
         condition: ExpressionNode = None,
         post: ExpressionNode = None,
         label: str = "",
@@ -335,7 +341,7 @@ class ForNode:
         )
 
 
-class BreakNode:
+class BreakNode(Statement):
     def __init__(self, label: str = "", target_type: str = None) -> None:
         self.label = label
         self.target_type = target_type
@@ -344,7 +350,7 @@ class BreakNode:
         return f"BREAK({self.label} {self.target_type})"
 
 
-class ContinueNode:
+class ContinueNode(Statement):
     def __init__(self, label: str = "") -> None:
         self.label = label
 
@@ -352,7 +358,7 @@ class ContinueNode:
         return f"CONTINUE({self.label})"
 
 
-class CaseNode:
+class CaseNode(Statement):
     def __init__(
         self,
         condition: ExpressionNode,
@@ -366,7 +372,7 @@ class CaseNode:
         return f"CASE({self.label} {self.condition}, {self.body})"
 
 
-class DefaultNode:
+class DefaultNode(Statement):
     def __init__(self, body: list[Statement]) -> None:
         self.body = body
         self.label = ""
@@ -375,7 +381,7 @@ class DefaultNode:
         return f"DEFAULT({self.label} {self.body})"
 
 
-class SwitchNode:
+class SwitchNode(Statement):
     def __init__(
         self,
         condition: ExpressionNode,
@@ -392,27 +398,24 @@ class SwitchNode:
         return f"SWITCH({self.label} {self.condition} {self.body})"
 
 
-class FunctionNode:
-    def __init__(self, return_type: str, name: str, body: BlockNode) -> None:
-        self.return_type = return_type
-        self.name = name
-        self.body = body
+# class FunctionNode:
+#     def __init__(
+#         self, return_type: str, name: str, params: list[str], body: BlockNode
+#     ) -> None:
+#         self.return_type = return_type
+#         self.name = name
+#         self.body = body
+#         self.params = params
 
-    def assemble(self) -> str:
-        return f"""
-        .global {self.name}
-        {self.name}:
-        """
+#     def __repr__(self):
+#         return f"FUNCTION({self.name} {self.params} {self.return_type} {self.body})"
 
-    def __repr__(self):
-        return f"FUNCTION({self.name} {self.return_type} {self.body})"
-
-    def __str__(self) -> str:
-        return f"""
-Function(
-    name = {self.name}
-    return_type = {self.return_type}
-    body = """
+#     def __str__(self) -> str:
+#         return f"""
+# Function(
+#     name = {self.name}
+#     return_type = {self.return_type}
+#     body = """
 
 
 class ConstantNode(ExpressionNode):
@@ -486,3 +489,28 @@ class ConditionalNode(ExpressionNode):
 
     def __repr__(self) -> str:
         return f"CONDITION({self.condition}, {self.then}, {self.else_})"
+
+
+class FunctionCallNode(ExpressionNode):
+    def __init__(
+        self,
+        identifier: str,
+        arguments: list[ExpressionNode],
+    ) -> None:
+        self.identifier = identifier
+        self.arguments = arguments
+
+    def __repr__(self) -> str:
+        return f"FUNCTION_CALL({self.identifier}, {self.arguments})"
+
+
+class ProgramNode:
+    def __init__(self, functions: list[FunctionDeclarationNode]) -> None:
+        self.functions = functions
+
+    def repr(self) -> str:
+        return f"PROGRAM({self.functions})"
+
+    def __str__(self) -> str:
+        return f"""
+Program("""

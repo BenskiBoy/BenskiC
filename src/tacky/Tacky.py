@@ -40,7 +40,7 @@ class Tacky:
         self.ir.append(IRProgramNode())
 
         for function in ast.functions:
-            self.ir.append(IRFunctionNode(function.name, function.return_type))
+            self.ir.append(IRFunctionNode(function.identifier, function.return_type))
             self.emit_ir(function.body)
             self.ir.append(
                 IRReturnNode(IRConstantNode(0))

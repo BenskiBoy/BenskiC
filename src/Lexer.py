@@ -1,6 +1,7 @@
 import re
 
 TOKENS = [
+    (r",", "COMMA"),
     (r"switch", "SWITCH"),
     (r"case", "CASE"),
     (r"default", "DEFAULT"),
