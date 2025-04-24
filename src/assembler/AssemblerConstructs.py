@@ -462,10 +462,10 @@ class InstructionUnary(Instruction):
 
 class InstructionAllocateStack(Instruction):
     def __init__(self, value, comment: str = "") -> None:
-        super().__init__("AllocateStack", value, comment=comment)
+        super().__init__("AllocateStack", abs(int(value)), comment=comment)
 
     def __str__(self):
-        return f"   subq   ${-self.arg_1}, %rsp {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
+        return f"   subq   ${self.arg_1}, %rsp {COMMENT_INDICATOR if self.comment else ''}{self.comment}"
 
 
 class InstructionDeallocateStack(Instruction):

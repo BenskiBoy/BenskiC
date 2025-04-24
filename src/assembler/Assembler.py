@@ -35,6 +35,8 @@ class AssemblyParser:
         for pseudo_name in self.stack_tracker[function_name].keys():
             if self.stack_tracker[function_name][pseudo_name] < max_size:
                 max_size = self.stack_tracker[function_name][pseudo_name]
+
+        print(f"Max size for {function_name} is {max_size}")
         return max_size
 
     def _parse_unary_type(self, op: str) -> UnaryOperator:
@@ -277,6 +279,7 @@ class AssemblyParser:
                     or isinstance(inst, InstructionIdiv)
                     or isinstance(inst, InstructionCmp)
                     or isinstance(inst, InstructionSetCC)
+                    or isinstance(inst, InstructionPush)
                 ):
                     if isinstance(inst.arg_1, OperandPseudo):
                         instructions[func][i].arg_1 = OperandStack(
@@ -299,9 +302,10 @@ class AssemblyParser:
         # add stack allocation
         for j, func in enumerate(instructions.keys()):
             if func in self.stack_tracker.keys():
-                instructions[func].insert(
-                    1, InstructionAllocateStack(self.get_function_stack_size(func) - 4)
-                )
+                stack_size = self.get_function_stack_size(func) - 4
+                # round to nearest 16
+                stack_size = (stack_size // 16) * 16
+                instructions[func].insert(1, InstructionAllocateStack(stack_size))
 
         return instructions
 
@@ -334,22 +338,18 @@ class AssemblyParser:
                     ):
                         print("~~~~")
                         print(f"HAD TO DO CLEAN OF CMP {i}")
-                        print(self.pretty_print())
                         dest = inst.arg_2
                         instructions[func][i].arg_2 = RegR10()
                         instructions[func].insert(i, InstructionMov(dest, RegR10()))
                         instructions[func][i + 1].arg_2 = RegR10()
                         instructions[func].insert(i + 2, InstructionMov(RegR10(), dest))
-                        print(self.pretty_print())
                         print("~~~~")
                     if isinstance(inst.arg_2, OperandImmediate):
                         print("~~~~")
                         print(f"HAD TO DO CLEAN OF CMP {i}")
-                        print(self.pretty_print())
                         val = inst.arg_2
                         instructions[func][i].arg_2 = RegR11()
                         instructions[func].insert(i, InstructionMov(val, RegR11()))
-                        print(self.pretty_print())
                         print("~~~~")
 
                 if isinstance(inst, InstructionBinary):
@@ -429,6 +429,10 @@ class AssemblyParser:
         for i, function in enumerate(prog.function_definitions):
             self.instructions[function.identifier] = []
             self.parse_function(function)
+
+        print("~~~~")
+        self.pretty_print()
+        print("~~~~")
 
         self.instructions = self.place_stack(self.instructions)
         self.instructions = self.set_stack_allocation(self.instructions)
@@ -517,6 +521,9 @@ class AssemblyParser:
         elif isinstance(tack, IRFunctionCallNode):
             register_args = tack.sources[0:6]
             stack_args = tack.sources[6:]
+            # if the length of the stack args is odd, we need to allocate 8 bytes
+            # to make it even, so that we can use movq
+            # to move the stack args to the registers
             if len(stack_args) % 2 != 0:
                 stack_padding = 8
             else:

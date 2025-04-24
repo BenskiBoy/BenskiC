@@ -101,6 +101,10 @@ class SemanticAnalysis:
         ast = self.semantic_analysis_parse(ast)
         self.typecheck_parse(ast)
 
+        if self.label_declarations:
+            if len(list(set(self.label_declarations))) != len(self.label_declarations):
+                raise Exception(f"Duplicate label name in '{self.label_declarations}'")
+
         # Check for label calls
         if self.label_calls:  # check if there are any label calls
             if not bool(set(self.label_declarations) & set(self.label_calls)):
@@ -164,6 +168,10 @@ class SemanticAnalysis:
 
         if isinstance(declaration, FunctionDeclarationNode):
 
+            # Reset the label declarations as can't goto a label defined in a separate function
+            self.label_declarations = []
+            self.label_calls = []
+
             self.enter_scope()
             if declaration.identifier in self.identifier_map:
                 prev_entry = self.identifier_map[declaration.identifier]
@@ -188,8 +196,8 @@ class SemanticAnalysis:
                         "Function declaration inside another function is not allowed."
                     )
                 self.semantic_analysis_within_function = True
-                # the parameters are already in the current scope
-                # so we don't need to enter a new scope
+                self.current_function = declaration.identifier
+
                 new_body = self.semantic_analysis_parse_block(
                     declaration.body, force_current_block=True
                 )
@@ -264,23 +272,23 @@ class SemanticAnalysis:
             statement.then = self.resolve_statement(statement.then)
             statement.else_ = self.resolve_statement(statement.else_)
             return statement
-        elif isinstance(statement, GotoNode):
-            self.label_calls.append(statement.label)
         elif isinstance(statement, BlockNode):
             statement = self.semantic_analysis_parse_block(statement)
             return statement
         elif isinstance(statement, LabeledStatementNode):
-            label = statement.label
+            label = statement.label + f"_F{self.current_function}"
             if statement.label in self.label_declarations:
                 raise Exception(f"Label '{statement.label}' already called.")
-            self.label_declarations.append(statement.label)
+            self.label_declarations.append(
+                statement.label + f"_F{self.current_function}"
+            )
             return LabeledStatementNode(
                 label,
                 self.resolve_statement(statement.child),
             )
         elif isinstance(statement, GotoNode):
-            self.label_calls.append(statement.label)
-            return GotoNode(statement.label)
+            self.label_calls.append(statement.label + f"_F{self.current_function}")
+            return GotoNode(statement.label + f"_F{self.current_function}")
         elif isinstance(statement, ExpressionNode):
             statement = self.resolve_expression(statement)
             return statement
@@ -350,9 +358,9 @@ class SemanticAnalysis:
                 expression.operator, UnaryOperatorNode
             ):
                 raise Exception("Unary operator cannot be used on assignment.")
-            if isinstance(child, (ConstantNode, BinaryNode)) and isinstance(
-                expression, UnaryNode
-            ):
+            if isinstance(
+                child, (ConstantNode, BinaryNode, FunctionCallNode)
+            ) and isinstance(expression, UnaryNode):
                 if expression.operator in [
                     UnaryOperatorNode.INCREMENT,
                     UnaryOperatorNode.DECREMENT,
